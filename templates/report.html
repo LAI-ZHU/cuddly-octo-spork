@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}流水查询{% endblock %}
+{% block content %}
+<h1 class="page-title">📋 流水查询</h1>
+
+<div class="card">
+    <form method="GET" class="form-row" style="align-items:end;">
+        <div>
+            <label>类型</label>
+            <select name="type">
+                <option value="">全部</option>
+                <option value="进货" {% if tx_type=='进货' %}selected{% endif %}>进货</option>
+                <option value="出货" {% if tx_type=='出货' %}selected{% endif %}>出货</option>
+                <option value="退货" {% if tx_type=='退货' %}selected{% endif %}>退货</option>
+            </select>
+        </div>
+        <div>
+            <label>开始日期</label>
+            <input type="date" name="from" value="{{ date_from }}">
+        </div>
+        <div>
+            <label>结束日期</label>
+            <input type="date" name="to" value="{{ date_to }}">
+        </div>
+        <div>
+            <button type="submit" class="btn btn-primary">🔍 查询</button>
+            <a href="{{ url_for('report') }}" class="btn btn-outline">重置</a>
+        </div>
+    </form>
+</div>
+
+{% if stats %}
+<div class="grid mb-16">
+    {% for s in stats %}
+    <div class="stat-card">
+        <div class="label">
+            {% if s.type=='进货' %}📦 今日进货
+            {% elif s.type=='出货' %}🚚 今日出货
+            {% else %}↩️ 今日退货{% endif %}
+        </div>
+        <div class="value" style="color:{% if s.type=='进货' %}#6ee7b7{% elif s.type=='出货' %}#f59e0b{% else %}#fca5a5{% endif %};">
+            {{ s.total_qty }} 件
+        </div>
+        {% if s.type=='出货' and s.total_amount > 0 %}
+        <div class="text-muted" style="font-size:13px;margin-top:2px;">
+            销售金额 ¥{{ '%.2f'|format(s.total_amount) }}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-title">流水记录（最近500条）</div>
+    {% if txs %}
+    <div style="overflow-x:auto;">
+    <table>
+        <thead><tr><th>时间</th><th>款号</th><th>款名</th><th>颜色</th><th>尺码</th><th>类型</th><th>数量</th><th>金额</th><th>客户</th><th>批次</th><th>备注</th></tr></thead>
+        <tbody>
+        {% for tx in txs %}
+        <tr>
+            <td class="text-muted" style="font-size:12px;white-space:nowrap;">{{ tx.created_at[:16] }}</td>
+            <td><strong>{{ tx.style_no }}</strong></td>
+            <td>{{ tx.product_name or '-' }}</td>
+            <td>{{ tx.color or '-' }}</td>
+            <td>{{ tx.size }}</td>
+            <td>
+                {% if tx.type=='进货' %}<span class="tag tag-green">进货</span>
+                {% elif tx.type=='出货' %}<span class="tag tag-yellow">出货</span>
+                {% else %}<span class="tag tag-red">退货</span>{% endif %}
+            </td>
+            <td>{{ tx.quantity }}</td>
+            <td>
+                {% if tx.type=='出货' and tx.retail_price and tx.retail_price > 0 %}
+                    ¥{{ '%.2f'|format(tx.quantity * tx.retail_price) }}
+                {% elif tx.type=='进货' and tx.cost_price and tx.cost_price > 0 %}
+                    ¥{{ '%.2f'|format(tx.quantity * tx.cost_price) }}
+                {% else %}-{% endif %}
+            </td>
+            <td class="text-muted">{{ tx.customer or '-' }}</td>
+            <td class="text-muted">{{ tx.batch or '-' }}</td>
+            <td class="text-muted" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;">{{ tx.notes or '-' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="text-muted">暂无流水记录</p>
+    {% endif %}
+</div>
+{% endblock %}

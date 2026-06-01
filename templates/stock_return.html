@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}退货{% endblock %}
+{% block content %}
+<h1 class="page-title">↩️ 退货入库</h1>
+<div class="card" style="max-width:600px;">
+<form method="POST">
+    <label>款号 *</label>
+    <select name="product_id" required>
+        <option value="">- 选择款号 -</option>
+        {% for p in products %}
+        <option value="{{ p.id }}" {% if request.args.get('pid')|string==p.id|string %}selected{% endif %}>
+            {{ p.style_no }} {{ p.name or '' }} {{ p.color or '' }}
+        </option>
+        {% endfor %}
+    </select>
+
+    <div class="form-row">
+        <div>
+            <label>尺码 *</label>
+            <select name="size" required>
+                <option value="">- 选择 -</option>
+                {% for s in sizes %}
+                <option value="{{ s }}">{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>数量 *</label>
+            <input type="number" name="quantity" required min="1" value="1">
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label>批次</label>
+            <input type="text" name="batch" placeholder="退回到哪个批次">
+        </div>
+        <div>
+            <label>备注</label>
+            <input type="text" name="notes" placeholder="退货原因">
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-outline">↩ 确认退货</button>
+    <a href="{{ url_for('index') }}" class="btn btn-outline">取消</a>
+</form>
+</div>
+{% endblock %}

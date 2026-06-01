@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}添加款号{% endblock %}
+{% block content %}
+<h1 class="page-title">添加款号</h1>
+<div class="card" style="max-width:600px;">
+<form method="POST">
+    <label>款号 *</label>
+    <input type="text" name="style_no" required placeholder="如: YR-001">
+
+    <div class="form-row">
+        <div>
+            <label>款名</label>
+            <input type="text" name="name" placeholder="如: 柠檬黄羽绒服">
+        </div>
+        <div>
+            <label>颜色</label>
+            <input type="text" name="color" placeholder="如: 柠檬黄">
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label>季节</label>
+            <select name="season">
+                <option value="">- 选择 -</option>
+                <option value="春季">春季</option>
+                <option value="夏季">夏季</option>
+                <option value="秋季">秋季</option>
+                <option value="冬季">冬季</option>
+                <option value="四季">四季</option>
+            </select>
+        </div>
+        <div>
+            <label>供应商</label>
+            <input type="text" name="supplier" placeholder="如: XX服装厂">
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label>成本价（进货价）</label>
+            <input type="number" step="0.01" name="cost_price" placeholder="0.00">
+        </div>
+        <div>
+            <label>零售价（出货价）</label>
+            <input type="number" step="0.01" name="retail_price" placeholder="0.00">
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">✓ 添加</button>
+    <a href="{{ url_for('index') }}" class="btn btn-outline">取消</a>
+</form>
+</div>
+{% endblock %}

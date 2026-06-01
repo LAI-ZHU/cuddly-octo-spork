@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}{{ product.style_no }} - 详情{% endblock %}
+{% block content %}
+<div class="flex-between mb-16">
+    <div>
+        <h1 class="page-title" style="margin-bottom:4px;">{{ product.style_no }}</h1>
+        <p style="color:#999;font-size:14px;">
+            {{ product.name or '无款名' }}
+            {% if product.color %} · <span class="tag tag-yellow">{{ product.color }}</span>{% endif %}
+            {% if product.season %} · {{ product.season }}{% endif %}
+            {% if product.supplier %} · 供应商: {{ product.supplier }}{% endif %}
+        </p>
+    </div>
+    <div class="inline-flex">
+        <a href="{{ url_for('stock_in') }}?pid={{ product.id }}" class="btn btn-success">📦 进货</a>
+        <a href="{{ url_for('stock_out') }}?pid={{ product.id }}" class="btn btn-primary">🚚 出货</a>
+        <a href="{{ url_for('stock_return') }}?pid={{ product.id }}" class="btn btn-outline">↩ 退货</a>
+    </div>
+</div>
+
+<!-- 价格信息 -->
+<div class="grid mb-16">
+    <div class="stat-card">
+        <div class="label">成本价（进货价）</div>
+        <div class="value" style="color:{% if product.cost_price>0 %}#f59e0b{% else %}#666{% endif %};">
+            {% if product.cost_price > 0 %}¥{{ '%.2f'|format(product.cost_price) }}{% else %}未设置{% endif %}
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="label">零售价（出货价）</div>
+        <div class="value" style="color:{% if product.retail_price>0 %}#6ee7b7{% else %}#666{% endif %};">
+            {% if product.retail_price > 0 %}¥{{ '%.2f'|format(product.retail_price) }}{% else %}未设置{% endif %}
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="label">毛利（单件）</div>
+        <div class="value" style="color:{% if product.retail_price > product.cost_price %}#6ee7b7{% else %}#fca5a5{% endif %};">
+            {% if product.retail_price > 0 and product.cost_price > 0 %}
+                ¥{{ '%.2f'|format(product.retail_price - product.cost_price) }}
+            {% else %}待设置{% endif %}
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="label">毛利率</div>
+        <div class="value" style="color:#6ee7b7;">
+            {% if product.retail_price > 0 and product.cost_price > 0 %}
+                {{ '%.1f'|format((product.retail_price - product.cost_price) / product.retail_price * 100) }}%
+            {% else %}待设置{% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 编辑价格 -->
+<div class="card" style="max-width:500px;">
+    <div class="card-title">修改价格</div>
+    <form method="POST" class="form-row" style="align-items:end;">
+        <div>
+            <label>成本价</label>
+            <input type="number" step="0.01" name="cost_price" value="{{ product.cost_price or '' }}" placeholder="0">
+        </div>
+        <div>
+            <label>零售价</label>
+            <input type="number" step="0.01" name="retail_price" value="{{ product.retail_price or '' }}" placeholder="0">
+        </div>
+        <div>
+            <button type="submit" class="btn btn-primary btn-sm">更新价格</button>
+        </div>
+    </form>
+</div>
+
+<!-- 尺码库存 -->
+<div class="grid mb-16">
+    {% for s in sizes %}
+    {% set ns = namespace(total=0) %}
+    {% for row in inv if row.size==s %}
+        {% set ns.total = ns.total + row.quantity %}
+    {% endfor %}
+    <div class="stat-card" style="{% if ns.total==0 %}opacity:0.4;{% endif %}">
+        <div class="label">尺码 {{ s }}</div>
+        <div class="value" style="color:{% if ns.total>10 %}#6ee7b7{% elif ns.total>0 %}#fcd34d{% else %}#fca5a5{% endif %};">
+            {{ ns.total }}
+        </div>
+        {% if product.cost_price > 0 %}
+        <div class="text-muted" style="font-size:12px;margin-top:2px;">
+            成本 ¥{{ '%.2f'|format(product.cost_price * ns.total) }}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <div class="card-title">批次库存明细</div>
+    {% if inv %}
+    <table>
+        <thead><tr><th>尺码</th><th>批次</th><th>数量</th><th>更新时间</th></tr></thead>
+        <tbody>
+        {% for row in inv %}
+        <tr>
+            <td><strong>{{ row.size }}</strong></td>
+            <td class="text-muted">{{ row.batch or '默认批次' }}</td>
+            <td><span class="badge" style="background:{% if row.quantity>0 %}#059669{% else %}#555{% endif %};">{{ row.quantity }}</span></td>
+            <td class="text-muted">{{ row.updated_at[:16] }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">暂无库存</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-title">最近流水（200条）</div>
+    {% if txs %}
+    <div style="overflow-x:auto;">
+    <table>
+        <thead><tr><th>时间</th><th>类型</th><th>尺码</th><th>数量</th><th>客户</th><th>批次</th><th>备注</th></tr></thead>
+        <tbody>
+        {% for tx in txs %}
+        <tr>
+            <td class="text-muted" style="font-size:12px;white-space:nowrap;">{{ tx.created_at[:16] }}</td>
+            <td>
+                {% if tx.type=='进货' %}<span class="tag tag-green">进货</span>
+                {% elif tx.type=='出货' %}<span class="tag tag-yellow">出货</span>
+                {% else %}<span class="tag tag-red">退货</span>{% endif %}
+            </td>
+            <td>{{ tx.size }}</td>
+            <td>{{ tx.quantity }}</td>
+            <td class="text-muted">{{ tx.customer or '-' }}</td>
+            <td class="text-muted">{{ tx.batch or '-' }}</td>
+            <td class="text-muted">{{ tx.notes or '-' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="text-muted">暂无流水</p>
+    {% endif %}
+</div>
+{% endblock %}

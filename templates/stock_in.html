@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}进货{% endblock %}
+{% block content %}
+<h1 class="page-title">📦 进货</h1>
+<div class="card" style="max-width:600px;">
+<form method="POST">
+    <label>款号 *</label>
+    <select name="product_id" required onchange="showPrice(this)">
+        <option value="">- 选择款号 -</option>
+        {% for p in products %}
+        <option value="{{ p.id }}" 
+            data-cost="{{ p.cost_price or 0 }}" 
+            data-retail="{{ p.retail_price or 0 }}"
+            {% if request.args.get('pid')|string==p.id|string %}selected{% endif %}>
+            {{ p.style_no }} {{ p.name or '' }} {{ p.color or '' }}
+        </option>
+        {% endfor %}
+    </select>
+    <div id="priceInfo" class="text-muted" style="margin-top:-12px;margin-bottom:16px;"></div>
+
+    <div class="form-row">
+        <div>
+            <label>尺码 *</label>
+            <select name="size" required>
+                <option value="">- 选择 -</option>
+                {% for s in sizes %}
+                <option value="{{ s }}">{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>数量 *</label>
+            <input type="number" name="quantity" required min="1" value="1">
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label>批次</label>
+            <input type="text" name="batch" placeholder="如: 202605-B1">
+        </div>
+        <div>
+            <label>备注</label>
+            <input type="text" name="notes">
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-success">✓ 确认进货</button>
+    <a href="{{ url_for('index') }}" class="btn btn-outline">取消</a>
+</form>
+</div>
+<script>
+function showPrice(sel) {
+    var opt = sel.options[sel.selectedIndex];
+    var info = document.getElementById('priceInfo');
+    var cost = opt.getAttribute('data-cost');
+    var retail = opt.getAttribute('data-retail');
+    if (cost > 0 || retail > 0) {
+        var text = '💰 ';
+        if (cost > 0) text += '成本 ¥' + parseFloat(cost).toFixed(2);
+        if (cost > 0 && retail > 0) text += ' → ';
+        if (retail > 0) text += '零售 ¥' + parseFloat(retail).toFixed(2);
+        info.textContent = text;
+    } else {
+        info.textContent = '';
+    }
+}
+showPrice(document.querySelector('select[name="product_id"]'));
+</script>
+{% endblock %}

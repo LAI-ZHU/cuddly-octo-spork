@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}库存总览 - 服装进销存{% endblock %}
+{% block content %}
+<div class="flex-between mb-16">
+    <h1 class="page-title" style="margin-bottom:0;">库存总览</h1>
+    <div class="inline-flex">
+        <a href="{{ url_for('add_product') }}" class="btn btn-outline">+ 新建款号</a>
+        <a href="{{ url_for('stock_in') }}" class="btn btn-success">📦 进货</a>
+        <a href="{{ url_for('stock_out') }}" class="btn btn-primary">🚚 出货</a>
+    </div>
+</div>
+
+{% if products %}
+<div class="grid mb-16">
+    <div class="stat-card">
+        <div class="label">款号总数</div>
+        <div class="value">{{ products|length }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">库存总件数</div>
+        <div class="value" style="color:#6ee7b7;">{{ products | sum(attribute='total_stock') }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">库存成本总价值</div>
+        <div class="value" style="color:#f59e0b;">¥{{ '%.2f'|format(total_cost) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">库存零售总价值</div>
+        <div class="value" style="color:#f59e0b;">¥{{ '%.2f'|format(total_retail) }}</div>
+    </div>
+</div>
+
+<div style="overflow-x:auto;">
+<table>
+    <thead>
+        <tr>
+            <th>款号</th>
+            <th>款名/颜色/季节</th>
+            <th>供应商</th>
+            <th class="text-right">总库存</th>
+            <th class="text-right">成本价</th>
+            <th class="text-right">零售价</th>
+            <th class="text-right">库存成本</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in products %}
+        <tr>
+            <td><strong>{{ p.style_no }}</strong></td>
+            <td>
+                {{ p.name or '-' }}
+                {% if p.color %}<span class="tag tag-yellow">{{ p.color }}</span>{% endif %}
+                {% if p.season %}<span class="text-muted">{{ p.season }}</span>{% endif %}
+            </td>
+            <td class="text-muted">{{ p.supplier or '-' }}</td>
+            <td class="text-right">
+                {% if p.total_stock > 0 %}
+                    <span class="badge">{{ p.total_stock }}</span>
+                {% else %}
+                    <span class="tag tag-red" style="font-size:13px;">0</span>
+                {% endif %}
+            </td>
+            <td class="text-right">
+                {% if p.cost_price > 0 %}¥{{ '%.2f'|format(p.cost_price) }}
+                {% else %}<span class="text-muted">-</span>{% endif %}
+            </td>
+            <td class="text-right">
+                {% if p.retail_price > 0 %}¥{{ '%.2f'|format(p.retail_price) }}
+                {% else %}<span class="text-muted">-</span>{% endif %}
+            </td>
+            <td class="text-right">
+                {% if p.cost_price > 0 and p.total_stock > 0 %}
+                    ¥{{ '%.2f'|format(p.cost_price * p.total_stock) }}
+                {% else %}<span class="text-muted">-</span>{% endif %}
+            </td>
+            <td>
+                <a href="{{ url_for('product_detail', pid=p.id) }}" class="btn btn-outline btn-sm">详情</a>
+                <a href="{{ url_for('stock_in') }}?pid={{ p.id }}" class="btn btn-success btn-sm">进货</a>
+                <a href="{{ url_for('stock_out') }}?pid={{ p.id }}" class="btn btn-primary btn-sm">出货</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:60px;">
+    <p style="color:#666;font-size:16px;">还没有款号，添加第一款吧</p>
+    <a href="{{ url_for('add_product') }}" class="btn btn-primary mt-16">+ 添加款号</a>
+</div>
+{% endif %}
+{% endblock %}
