@@ -128,9 +128,9 @@ form input:focus,form select:focus{outline:none;border-color:#f59e0b}
         <div class="group">采购</div>
         <a href="{{ url_for('purchase_list') }}" class="{% if '/purchase' in request.path %}active{% endif %}"><span class="ico">📦</span><span>采购管理</span></a>
         <a href="{{ url_for('supplier_list') }}" class="{% if '/suppliers' in request.path %}active{% endif %}"><span class="ico">🏭</span><span>供应商</span></a>
-        <div class="group">销售</div>
-        <a href="{{ url_for('sales_quick') }}" class="{% if '/sales/quick' in request.path %}active{% endif %}"><span class="ico">🛒</span><span>快速开单</span></a>
-        <a href="{{ url_for('sales_list') }}" class="{% if '/sales' in request.path and '/sales/quick' not in request.path and '/sales/submit' not in request.path %}active{% endif %}"><span class="ico">🧾</span><span>销售记录</span></a>
+        <div class="group">出货</div>
+        <a href="{{ url_for('wholesale_add') }}" class="{% if '/wholesale' in request.path %}active{% endif %}"><span class="ico">📤</span><span>批发出货</span></a>
+        <a href="{{ url_for('sales_list') }}" class="{% if '/sales' in request.path and '/wholesale' not in request.path and '/sales/submit' not in request.path %}active{% endif %}"><span class="ico">🧾</span><span>出货记录</span></a>
         <a href="{{ url_for('customer_list') }}" class="{% if '/customers' in request.path %}active{% endif %}"><span class="ico">👥</span><span>客户管理</span></a>
         <div class="group">库存</div>
         <a href="{{ url_for('inventory_overview') }}" class="{% if request.path=='/inventory' %}active{% endif %}"><span class="ico">📋</span><span>库存总览</span></a>

@@ -20,7 +20,7 @@
             <div><label>商品</label>
                 <select name="product_id[]" onchange="updatePrice(this)" required>
                     <option value="">- 选择 -</option>
-                    {% for p in products %}<option value="{{ p.id }}" data-price="{{ p.cost_price }}">{{ p.style_no }} {{ p.name }} {{ p.color }}</option>{% endfor %}
+                    {% for p in products %}<option value="{{ p.id }}" data-price="{{ p.cost_price }}" data-unit="{{ p.unit or '件' }}">[{{ p.product_type or '成品' }}] {{ p.style_no }} {{ p.name }} {{ p.color }} ({{ p.unit or '件'}})</option>{% endfor %}
                 </select>
             </div>
             <div><label>尺码</label><input type="text" name="size[]" placeholder="如 120"></div>
@@ -43,7 +43,7 @@ function addItem(){
         <div><label>商品</label>
             <select name="product_id[]" onchange="updatePrice(this)" required>
                 <option value="">- 选择 -</option>
-                {% for p in products %}<option value="{{ p.id }}" data-price="{{ p.cost_price }}">{{ p.style_no }} {{ p.name }} {{ p.color }}</option>{% endfor %}
+                {% for p in products %}<option value="{{ p.id }}" data-price="{{ p.cost_price }}" data-unit="{{ p.unit or '件' }}">[{{ p.product_type or '成品' }}] {{ p.style_no }} {{ p.name }} {{ p.color }} ({{ p.unit or '件'}})</option>{% endfor %}
             </select>
         </div>
         <div><label>尺码</label><input type="text" name="size[]" placeholder="如 120"></div>

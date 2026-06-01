@@ -16,21 +16,24 @@
 </form>
 <div style="overflow-x:auto;">
 <table>
-<thead><tr><th>款号</th><th>款名</th><th>颜色</th><th>分类</th><th class="text-right">零售价</th><th class="text-right">库存</th><th>状态</th><th></th></tr></thead>
+<thead><tr><th>类型</th><th>款号</th><th>款名</th><th>颜色</th><th>分类</th><th>单位</th><th class="text-right">进价</th><th class="text-right">批发价</th><th class="text-right">库存</th><th>状态</th><th></th></tr></thead>
 <tbody>
 {% for p in products %}
 <tr>
+    <td><span class="tag tag-{% if p.product_type=='原材料' %}blue{% elif p.product_type=='成品' %}green{% else %}green{% endif %}">{{ p.product_type or '成品' }}</span></td>
     <td><strong>{{ p.style_no }}</strong></td>
     <td>{{ p.name or '-' }}</td>
-    <td><span class="tag tag-yellow">{{ p.color or '-' }}</span></td>
+    <td>{% if p.product_type=='成品' or not p.product_type %}<span class="tag tag-yellow">{{ p.color or '-' }}</span>{% else %}-{% endif %}</td>
     <td class="text-muted">{{ p.category_name or '-' }}</td>
-    <td class="text-right" style="color:#f59e0b;font-weight:600;">{% if p.retail_price>0 %}¥{{ '%.0f'|format(p.retail_price) }}{% else %}-{% endif %}</td>
+    <td>{{ p.unit or '件' }}</td>
+    <td class="text-right">{% if p.cost_price>0 %}¥{{ '%.2f'|format(p.cost_price) }}{% else %}-{% endif %}</td>
+    <td class="text-right" style="color:#f59e0b;font-weight:600;">{% if p.wholesale_price>0 %}¥{{ '%.0f'|format(p.wholesale_price) }}{% else %}-{% endif %}</td>
     <td class="text-right"><span class="badge">{{ p.stock }}</span></td>
     <td>{% if p.status=='上架' %}<span class="tag tag-green">在售</span>{% else %}<span class="tag tag-red">下架</span>{% endif %}</td>
     <td><a href="{{ url_for('product_edit', pid=p.id) }}" class="btn btn-outline btn-xs">编辑</a></td>
 </tr>
 {% else %}
-<tr><td colspan="8" class="text-center text-muted" style="padding:60px;">
+<tr><td colspan="11" class="text-center text-muted" style="padding:60px;">
     <div style="font-size:40px;margin-bottom:12px;">👕</div>
     <div style="font-size:16px;margin-bottom:8px;">还没有商品</div>
     <div class="text-muted" style="margin-bottom:16px;">点击右上角「+ 新建商品」开始添加</div>

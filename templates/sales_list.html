@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block page_title %}销售记录{% endblock %}
 {% block toolbar %}
-<a href="{{ url_for('sales_quick') }}" class="btn btn-primary btn-sm">🛒 开单</a>
+<a href="{{ url_for('wholesale_add') }}" class="btn btn-primary btn-sm">📤 添加出货</a>
 <a href="{{ url_for('export_excel', type='sales') }}" class="btn btn-outline btn-sm">📥 导出</a>
 {% endblock %}
 {% block content %}

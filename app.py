@@ -131,6 +131,8 @@ def init_db():
     except: pass
     try: conn.execute('ALTER TABLE suppliers ADD COLUMN balance REAL DEFAULT 0')
     except: pass
+    try: conn.execute('ALTER TABLE products ADD COLUMN product_type TEXT DEFAULT "成品"')
+    except: pass
     # 默认数据
     if not conn.execute('SELECT id FROM warehouses LIMIT 1').fetchone():
         conn.execute("INSERT INTO warehouses (name,remark) VALUES ('主仓库','默认仓库')")
@@ -143,7 +145,8 @@ init_db()
 def gen_order_no(prefix):
     today = date.today().strftime('%Y%m%d')
     conn = get_db()
-    row = conn.execute("SELECT COUNT(*) as c FROM sales_orders WHERE order_no LIKE ?",
+    tbl = 'sales_orders' if prefix == 'XS' else 'purchase_orders'
+    row = conn.execute(f"SELECT COUNT(*) as c FROM {tbl} WHERE order_no LIKE ?",
                        (f'{prefix}{today}%',)).fetchone()
     conn.close()
     n = row['c'] + 1
@@ -183,12 +186,26 @@ def dashboard():
     # 总商品数/库存
     total_products = conn.execute('SELECT COUNT(*) as c FROM products').fetchone()['c']
     total_stock = conn.execute('SELECT COALESCE(SUM(quantity),0) as c FROM inventory').fetchone()['c']
+    # 原材料/成品统计
+    raw_count = conn.execute("SELECT COUNT(*) as c FROM products WHERE product_type='原材料'").fetchone()['c']
+    finish_count = conn.execute("SELECT COUNT(*) as c FROM products WHERE product_type='成品' OR product_type IS NULL").fetchone()['c']
+    raw_stock_val = conn.execute("""
+        SELECT COALESCE(SUM(i.quantity * p.cost_price),0) as v
+        FROM inventory i JOIN products p ON p.id=i.product_id
+        WHERE p.product_type='原材料'
+    """).fetchone()['v']
+    finish_stock_val = conn.execute("""
+        SELECT COALESCE(SUM(i.quantity * p.cost_price),0) as v
+        FROM inventory i JOIN products p ON p.id=i.product_id
+        WHERE p.product_type='成品' OR p.product_type IS NULL
+    """).fetchone()['v']
     # 供应商/客户
     supplier_count = conn.execute('SELECT COUNT(*) as c FROM suppliers').fetchone()['c']
     customer_count = conn.execute('SELECT COUNT(*) as c FROM customers').fetchone()['c']
     # 低库存
     low_stock = conn.execute("""
-        SELECT p.style_no, p.name, p.color, i.size, i.quantity
+        SELECT p.style_no, p.name, p.color, i.size, i.quantity,
+               p.product_type
         FROM inventory i JOIN products p ON p.id=i.product_id
         WHERE i.quantity>0 AND i.quantity<=5 ORDER BY i.quantity LIMIT 20
     """).fetchall()
@@ -214,6 +231,8 @@ def dashboard():
     conn.close()
     return render_template('dashboard.html', today_sales=today_sales, today_purchase=today_purchase,
                           total_products=total_products, total_stock=total_stock,
+                          raw_count=raw_count, finish_count=finish_count,
+                          raw_stock_val=raw_stock_val, finish_stock_val=finish_stock_val,
                           supplier_count=supplier_count, customer_count=customer_count,
                           low_stock=low_stock, debt_customers=debt_customers,
                           chart_days=days, month_sales=month_sales)
@@ -240,7 +259,7 @@ def product_list():
         sql += ' AND (p.style_no LIKE ? OR p.name LIKE ? OR p.barcode LIKE ?)'
         kwp = f'%{kw}%'
         params.extend([kwp, kwp, kwp])
-    sql += ' ORDER BY p.created_at DESC'
+    sql += ' ORDER BY p.product_type, p.created_at DESC'
     products = conn.execute(sql, params).fetchall()
     categories = conn.execute('SELECT * FROM categories ORDER BY parent_id, sort_order').fetchall()
     conn.close()
@@ -299,20 +318,21 @@ def product_edit(pid):
         name = request.form.get('name','').strip()
         cat_id = request.form.get('category_id') or None
         brand_id = request.form.get('brand_id') or None
-        color = request.form.get('color','').strip()
+        product_type = request.form.get('product_type', p['product_type'] or '成品')
+        color = request.form.get('color','').strip() if product_type=='成品' else ''
         unit = request.form.get('unit','件')
         barcode = request.form.get('barcode','').strip()
         cost_price = float(request.form.get('cost_price',0) or 0)
-        retail_price = float(request.form.get('retail_price',0) or 0)
+        retail_price = float(request.form.get('retail_price',0) or 0) if product_type=='成品' else 0
         wholesale_price = float(request.form.get('wholesale_price',0) or 0)
         description = request.form.get('description','').strip()
         status = request.form.get('status','上架')
-        sizes = request.form.getlist('sizes[]')
+        sizes = request.form.getlist('sizes[]') if product_type=='成品' else []
         try:
             conn.execute('''UPDATE products SET style_no=?,name=?,category_id=?,brand_id=?,color=?,unit=?,
-                barcode=?,cost_price=?,retail_price=?,wholesale_price=?,description=?,status=?,
+                barcode=?,cost_price=?,retail_price=?,wholesale_price=?,description=?,status=?,product_type=?,
                 updated_at=datetime('now','localtime') WHERE id=?''',
-                (style_no,name,cat_id,brand_id,color,unit,barcode,cost_price,retail_price,wholesale_price,description,status,pid))
+                (style_no,name,cat_id,brand_id,color,unit,barcode,cost_price,retail_price,wholesale_price,description,status,product_type,pid))
             conn.execute('DELETE FROM product_sizes WHERE product_id=?', (pid,))
             for s in sizes:
                 if s:
@@ -330,7 +350,7 @@ def product_edit(pid):
     stock_map = {r['size']: r['quantity'] for r in stocks}
     conn.close()
     return render_template('product_form.html', product=p, categories=categories, brands=brands,
-                          sizes=SIZES, psizes=psizes, stock_map=stock_map)
+                          sizes=SIZES, psizes=psizes, stock_map=stock_map, units=UNITS)
 
 @app.route('/products/<int:pid>/delete', methods=['POST'])
 def product_delete(pid):
@@ -447,7 +467,7 @@ def purchase_list():
 def purchase_add():
     conn = get_db()
     suppliers = conn.execute('SELECT * FROM suppliers ORDER BY name').fetchall()
-    products = conn.execute('SELECT id,style_no,name,color,cost_price,retail_price FROM products WHERE status="上架" ORDER BY style_no').fetchall()
+    products = conn.execute('SELECT id,style_no,name,color,unit,cost_price,retail_price,product_type FROM products WHERE status="上架" ORDER BY product_type, style_no').fetchall()
     conn.close()
     if request.method == 'POST':
         supplier_id = request.form.get('supplier_id') or None
@@ -502,7 +522,7 @@ def purchase_detail(oid):
         flash('采购单不存在', 'error')
         return redirect(url_for('purchase_list'))
     items = conn.execute('''
-        SELECT pi.*, p.style_no, p.name, p.color
+        SELECT pi.*, p.style_no, p.name, p.color, p.unit, p.product_type
         FROM purchase_items pi JOIN products p ON p.id=pi.product_id
         WHERE pi.order_id=?
     ''', (oid,)).fetchall()
@@ -527,7 +547,7 @@ def purchase_delete(oid):
     flash('采购单已删除', 'success')
     return redirect(url_for('purchase_list'))
 
-# ═══════════════════════ 销售 ═══════════════════════
+# ═══════════════════════ 销售（批发出货） ═══════════════════════
 @app.route('/sales')
 def sales_list():
     conn = get_db()
@@ -539,47 +559,52 @@ def sales_list():
     conn.close()
     return render_template('sales_list.html', orders=orders)
 
-@app.route('/sales/quick')
-def sales_quick():
-    """快速开单页(POS风格)"""
+@app.route('/wholesale/add', methods=['GET','POST'])
+def wholesale_add():
+    """批发出货单"""
     conn = get_db()
-    products = conn.execute('''
-        SELECT p.*, COALESCE(SUM(i.quantity),0) as stock
-        FROM products p LEFT JOIN inventory i ON i.product_id=p.id
-        WHERE p.status='上架'
-        GROUP BY p.id ORDER BY p.style_no
-    ''').fetchall()
     customers = conn.execute('SELECT * FROM customers ORDER BY name').fetchall()
-    # 每个商品的尺码库存
-    skus = {}
-    for p in products:
-        szs = conn.execute('SELECT size, quantity FROM inventory WHERE product_id=?', (p['id'],)).fetchall()
-        skus[p['id']] = {r['size']: r['quantity'] for r in szs}
+    suppliers = conn.execute('SELECT * FROM suppliers ORDER BY name').fetchall()
+    # 只列出有库存的成品
+    products = conn.execute('''
+        SELECT p.id, p.style_no, p.name, p.color, p.unit, p.wholesale_price, p.cost_price,
+               COALESCE(SUM(i.quantity),0) as stock
+        FROM products p
+        LEFT JOIN inventory i ON i.product_id=p.id
+        WHERE p.status='上架' AND (p.product_type='成品' OR p.product_type IS NULL)
+        GROUP BY p.id
+        HAVING stock>0
+        ORDER BY p.style_no
+    ''').fetchall()
     conn.close()
-    return render_template('sales_quick.html', products=products, customers=customers, skus=skus)
+    if request.method == 'POST':
+        return redirect(url_for('wholesale_submit'))
+    return render_template('wholesale_form.html', customers=customers, products=products)
 
-@app.route('/sales/submit', methods=['POST'])
-def sales_submit():
-    data = request.get_json()
-    if not data or not data.get('items'):
-        return jsonify({'ok': False, 'msg': '没有商品'})
+@app.route('/wholesale/submit', methods=['POST'])
+def wholesale_submit():
     conn = get_db()
-    customer_id = data.get('customer_id') or None
-    discount = float(data.get('discount', 0))
-    payment = data.get('payment_method', '现金')
-    notes = data.get('notes','').strip()
+    customer_id = request.form.get('customer_id') or None
+    discount = float(request.form.get('discount', 0) or 0)
+    payment = request.form.get('payment_method', '现金')
+    notes = request.form.get('notes','').strip()
+    pids = request.form.getlist('product_id[]')
+    sizes = request.form.getlist('size[]')
+    qtys = request.form.getlist('qty[]')
+    prices = request.form.getlist('price[]')
     order_no = gen_order_no('XS')
     total_amt = 0.0
     total_cost = 0.0
+    wid = 1
     conn.execute('INSERT INTO sales_orders (order_no,customer_id,discount,payment_method,notes) VALUES (?,?,?,?,?)',
                 (order_no,customer_id,discount,payment,notes))
     oid = conn.execute('SELECT id FROM sales_orders WHERE order_no=?', (order_no,)).fetchone()['id']
-    for item in data['items']:
-        pid = item['product_id']
-        size = item.get('size','')
-        qty = int(item['quantity'])
-        price = float(item['price'])
-        # 取当时的进货价
+    for i in range(len(pids)):
+        if not pids[i] or not qtys[i]: continue
+        pid = int(pids[i])
+        size = sizes[i] if i < len(sizes) else ''
+        qty = int(qtys[i])
+        price = float(prices[i] or 0)
         p = conn.execute('SELECT cost_price FROM products WHERE id=?', (pid,)).fetchone()
         cost = p['cost_price'] if p else 0
         subtotal = qty * price
@@ -599,17 +624,17 @@ def sales_submit():
             remaining -= deduct
         conn.execute('''
             UPDATE inventory SET quantity=MAX(quantity-?,0)
-            WHERE product_id=? AND size=? AND warehouse_id=1
-        ''', (qty, pid, size))
+            WHERE product_id=? AND size=? AND warehouse_id=?
+        ''', (qty, pid, size, wid))
     final_amt = max(0, total_amt - discount)
     conn.execute('UPDATE sales_orders SET total_amount=?,final_amount=? WHERE id=?',
                 (total_amt, final_amt, oid))
-    # 如果赊账，增加客户欠款
     if payment == '赊账' and customer_id:
         conn.execute('UPDATE customers SET balance=balance+? WHERE id=?', (final_amt, customer_id))
     conn.commit()
     conn.close()
-    return jsonify({'ok': True, 'order_no': order_no, 'total': total_amt, 'final': final_amt})
+    flash(f'出货单 {order_no} 已创建，总额 ¥{final_amt:.2f}', 'success')
+    return redirect(url_for('sales_detail', oid=oid))
 
 @app.route('/sales/<int:oid>')
 def sales_detail(oid):
@@ -799,8 +824,10 @@ def inventory_overview():
     wid = request.args.get('wid', 1)
     cat_id = request.args.get('cat','')
     kw = request.args.get('kw','')
+    type_filter = request.args.get('type','')
     sql = '''
-        SELECT p.id, p.style_no, p.name, p.color, p.cost_price, p.retail_price,
+        SELECT p.id, p.style_no, p.name, p.color, p.cost_price, p.retail_price, p.unit,
+               p.product_type,
                b.size, COALESCE(SUM(b.quantity),0) as quantity, c.name as category_name
         FROM inventory_batches b
         JOIN products p ON p.id=b.product_id
@@ -808,6 +835,9 @@ def inventory_overview():
         WHERE b.warehouse_id=?
     '''
     params = [wid]
+    if type_filter:
+        sql += ' AND (p.product_type = ? OR (p.product_type IS NULL AND ? = "成品"))'
+        params.extend([type_filter, type_filter])
     if cat_id:
         sql += ' AND p.category_id=?'
         params.append(cat_id)
@@ -821,7 +851,7 @@ def inventory_overview():
     categories = conn.execute('SELECT * FROM categories ORDER BY parent_id, sort_order').fetchall()
     conn.close()
     return render_template('inventory_overview.html', inv=inv, warehouses=warehouses, wid=int(wid),
-                          categories=categories, cat_id=cat_id, kw=kw)
+                          categories=categories, cat_id=cat_id, kw=kw, type_filter=type_filter)
 
 @app.route('/inventory/batches')
 def inventory_batches():
@@ -1026,20 +1056,27 @@ def report_inventory():
     total_retail_value = conn.execute("""
         SELECT COALESCE(SUM(i.quantity * p.retail_price),0) as v
         FROM inventory i JOIN products p ON p.id=i.product_id
+        WHERE p.product_type='成品' OR p.product_type IS NULL
+    """).fetchone()['v']
+    # 原材料总成本
+    raw_cost = conn.execute("""
+        SELECT COALESCE(SUM(i.quantity * p.cost_price),0) as v
+        FROM inventory i JOIN products p ON p.id=i.product_id
+        WHERE p.product_type='原材料'
     """).fetchone()['v']
     products = conn.execute("""
-        SELECT p.style_no, p.name, p.color, p.cost_price, p.retail_price,
+        SELECT p.style_no, p.name, p.color, p.cost_price, p.retail_price, p.unit, p.product_type,
                COALESCE(SUM(i.quantity),0) as qty,
                COALESCE(SUM(i.quantity * p.cost_price),0) as cost_value,
                COALESCE(SUM(i.quantity * p.retail_price),0) as retail_value
         FROM products p
         LEFT JOIN inventory i ON i.product_id=p.id
         GROUP BY p.id HAVING qty>0
-        ORDER BY cost_value DESC
+        ORDER BY p.product_type, cost_value DESC
     """).fetchall()
     conn.close()
     return render_template('report_inventory.html', total_cost_value=total_cost_value,
-                          total_retail_value=total_retail_value, products=products)
+                          total_retail_value=total_retail_value, raw_cost=raw_cost, products=products)
 
 # ═══════════════════════ 导出 ═══════════════════════
 @app.route('/export/<string:type>')
@@ -1049,17 +1086,16 @@ def export_excel(type):
     wb = xlsxwriter.Workbook(fp)
     if type == 'inventory':
         ws = wb.add_worksheet('库存')
-        headers = ['款号','款名','颜色','尺码','数量','成本价','零售价','成本金额','零售金额']
+        headers = ['类型','款号','款名','单位','价格','库存量','库存成本']
         ws.write_row(0,0,headers)
         rows = conn.execute('''
-            SELECT p.style_no, p.name, p.color, i.size, i.quantity, p.cost_price, p.retail_price
+            SELECT p.product_type, p.style_no, p.name, p.unit, p.cost_price, i.size, i.quantity
             FROM inventory i JOIN products p ON p.id=i.product_id
-            WHERE i.quantity>0 ORDER BY p.style_no, i.size
+            WHERE i.quantity>0 ORDER BY p.product_type, p.style_no, i.size
         ''').fetchall()
         for i, r in enumerate(rows, 1):
-            ws.write_row(i,0,[r['style_no'],r['name'],r['color'],r['size'],r['quantity'],
-                             r['cost_price'],r['retail_price'],
-                             r['cost_price']*r['quantity'], r['retail_price']*r['quantity']])
+            ws.write_row(i,0,[r['product_type'] or '成品',r['style_no'],r['name'],r['unit'],
+                             r['cost_price'],r['size'],r['quantity']])
     elif type == 'products':
         ws = wb.add_worksheet('商品')
         headers = ['款号','款名','颜色','条码','分类','品牌','进货价','零售价','批发价','总库存']

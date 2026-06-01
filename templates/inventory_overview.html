@@ -10,6 +10,11 @@
     <select name="wid" style="padding:6px 10px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px;">
         {% for w in warehouses %}<option value="{{ w.id }}" {% if wid==w.id %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
     </select>
+    <select name="type" style="padding:6px 10px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px;">
+        <option value="">全部类型</option>
+        <option value="原材料" {% if type_filter=='原材料' %}selected{% endif %}>🧵 原材料</option>
+        <option value="成品" {% if type_filter=='成品' %}selected{% endif %}>👕 成品</option>
+    </select>
     <select name="cat" style="padding:6px 10px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px;">
         <option value="">全部分类</option>
         {% for c in categories %}<option value="{{ c.id }}" {% if cat_id|string==c.id|string %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
@@ -18,18 +23,20 @@
     <button class="btn btn-primary btn-sm">🔍 搜索</button>
 </form>
 <div style="overflow-x:auto;">
-<table><thead><tr><th>款号</th><th>款名</th><th>颜色</th><th>分类</th><th>尺码</th><th class="text-right">数量</th><th class="text-right">成本价</th><th class="text-right">库存成本</th></tr></thead>
+<table><thead><tr><th>类型</th><th>款号</th><th>款名</th><th>颜色</th><th>分类</th><th>尺码</th><th class="text-right">数量</th><th>单位</th><th class="text-right">成本价</th><th class="text-right">库存成本</th></tr></thead>
 <tbody>{% for r in inv %}
 <tr>
+    <td><span class="tag tag-{% if r.product_type=='原材料' %}blue{% else %}green{% endif %}">{{ r.product_type or '成品' }}</span></td>
     <td><strong>{{ r.style_no }}</strong></td>
     <td>{{ r.name or '-' }}</td>
-    <td><span class="tag tag-yellow">{{ r.color or '-' }}</span></td>
+    <td>{% if r.product_type!='原材料' %}<span class="tag tag-yellow">{{ r.color or '-' }}</span>{% else %}-{% endif %}</td>
     <td class="text-muted">{{ r.category_name or '-' }}</td>
-    <td>{{ r.size }}</td>
+    <td>{{ r.size or '-' }}</td>
     <td class="text-right"><span class="badge">{{ r.quantity }}</span></td>
+    <td>{{ r.unit or '件' }}</td>
     <td class="text-right">{% if r.cost_price>0 %}¥{{ '%.2f'|format(r.cost_price) }}{% else %}-{% endif %}</td>
     <td class="text-right">{% if r.cost_price>0 %}¥{{ '%.2f'|format(r.cost_price * r.quantity) }}{% else %}-{% endif %}</td>
-</tr>{% else %}<tr><td colspan="8" class="text-muted text-center" style="padding:40px;">暂无库存</td></tr>{% endfor %}
+</tr>{% else %}<tr><td colspan="10" class="text-muted text-center" style="padding:40px;">暂无库存</td></tr>{% endfor %}
 </tbody></table>
 </div>
 {% endblock %}

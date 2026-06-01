@@ -1,53 +1,44 @@
 {% extends "base.html" %}
 {% block page_title %}仪表盘{% endblock %}
-{% block toolbar %}
-<a href="{{ url_for('sales_quick') }}" class="btn btn-primary btn-sm">🛒 开单</a>
-<a href="{{ url_for('purchase_add') }}" class="btn btn-success btn-sm">📦 采购</a>
-{% endblock %}
 {% block content %}
 <div class="grid grid-4 mb-16">
-    <div class="stat-card">
-        <div class="lbl">今日销售额</div>
-        <div class="val" style="color:#f59e0b;">¥{{ '%.0f'|format(today_sales.amount) }}</div>
-        <div class="sub">{{ today_sales.orders }} 单 · 利润 ¥{{ '%.0f'|format(today_sales.profit) }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="lbl">今日采购</div>
-        <div class="val" style="color:#6ee7b7;">¥{{ '%.0f'|format(today_purchase.amount) }}</div>
-        <div class="sub">{{ today_purchase.orders }} 单</div>
-    </div>
-    <div class="stat-card">
-        <div class="lbl">本月销售额</div>
-        <div class="val" style="color:#6ee7b7;">¥{{ '%.0f'|format(month_sales) }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="lbl">商品总数 / 库存件数</div>
-        <div class="val" style="font-size:22px;">{{ total_products }} <span style="color:#666;font-size:16px;">/</span> {{ total_stock }}</div>
-        <div class="sub">供应商 {{ supplier_count }} · 客户 {{ customer_count }}</div>
-    </div>
+    <div class="stat-card"><div class="lbl">今日出货</div><div class="val" style="color:#f59e0b;">¥{{ '%.0f'|format(today_sales.amount) }}</div><div class="text-muted">{{ today_sales.orders }} 单</div></div>
+    <div class="stat-card"><div class="lbl">今日采购</div><div class="val" style="color:#fca5a5;">¥{{ '%.0f'|format(today_purchase.amount) }}</div><div class="text-muted">{{ today_purchase.orders }} 单</div></div>
+    <div class="stat-card"><div class="lbl">商品总数</div><div class="val">{{ total_products }}</div><div class="text-muted">原材料 {{ raw_count }} · 成品 {{ finish_count }}</div></div>
+    <div class="stat-card"><div class="lbl">总库存量</div><div class="val">{{ total_stock }}</div><div class="text-muted">供应商 {{ supplier_count }} · 客户 {{ customer_count }}</div></div>
 </div>
-
-<!-- 近7天销售趋势 -->
-<div class="card">
-    <div class="card-title">近7天销售趋势</div>
-    <div class="chart-bar">{% for d in chart_days %}<div class="bar" style="height:{{ (d.amount / chart_days|map(attribute='amount')|max * 60)|round|int if chart_days|map(attribute='amount')|max > 0 else 2 }}px;" title="{{ d.date }} ¥{{ '%.0f'|format(d.amount) }}"></div>{% endfor %}</div>
-    <div class="chart-labels">{% for d in chart_days %}<span>{{ d.date }}</span>{% endfor %}</div>
+<div class="grid grid-3 mb-16">
+    <div class="stat-card" style="border-left:3px solid #f59e0b;"><div class="lbl">原材料库存价值</div><div class="val" style="color:#fca5a5;">¥{{ '%.0f'|format(raw_stock_val) }}</div></div>
+    <div class="stat-card" style="border-left:3px solid #6ee7b7;"><div class="lbl">成品库存价值</div><div class="val" style="color:#fcd34d;">¥{{ '%.0f'|format(finish_stock_val) }}</div></div>
+    <div class="stat-card" style="border-left:3px solid #60a5fa;"><div class="lbl">本月销售</div><div class="val" style="color:#6ee7b7;">¥{{ '%.0f'|format(month_sales) }}</div></div>
 </div>
-
-<div class="grid grid-2" style="grid-template-columns:1fr 1fr;gap:16px;">
+<div class="grid grid-2">
     <div class="card">
-        <div class="card-title">⚠️ 低库存预警（≤5件）</div>
-        {% if low_stock %}
-        <table><thead><tr><th>款号</th><th>款名</th><th>颜色</th><th>尺码</th><th>库存</th></tr></thead>
-        <tbody>{% for r in low_stock %}<tr><td>{{ r.style_no }}</td><td>{{ r.name }}</td><td>{{ r.color }}</td><td>{{ r.size }}</td><td><span class="tag tag-red">{{ r.quantity }}</span></td></tr>{% endfor %}</tbody></table>
-        {% else %}<p class="text-muted">暂无低库存商品</p>{% endif %}
+        <div class="card-title">近7天出货趋势</div>
+        <div style="display:flex;align-items:end;height:120px;gap:2px;padding:12px 0;">
+            {% for d in chart_days %}
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+                <div style="background:linear-gradient(to top,#f59e0b,transparent);height:{{ (d.amount/200)|round|int if d.amount<200 else 100 }}px;min-height:3px;width:100%;border-radius:4px 4px 0 0;"></div>
+                <span style="font-size:10px;color:#666;margin-top:4px;">{{ d.date[-2:] }}</span>
+            </div>
+            {% endfor %}
+        </div>
     </div>
     <div class="card">
-        <div class="card-title">💰 客户欠款 TOP10</div>
-        {% if debt_customers %}
-        <table><thead><tr><th>客户</th><th>欠款金额</th></tr></thead>
-        <tbody>{% for r in debt_customers %}<tr><td>{{ r.name }}</td><td><span class="tag tag-yellow">¥{{ '%.0f'|format(r.balance) }}</span></td></tr>{% endfor %}</tbody></table>
-        {% else %}<p class="text-muted">暂无客户欠款</p>{% endif %}
+        <div class="card-title">欠款客户 TOP10</div>
+        <table><thead><tr><th>客户</th><th class="text-right">欠款</th></tr></thead>
+        <tbody>{% for c in debt_customers %}<tr><td>{{ c.name }}</td><td class="text-right" style="color:#fcd34d;">¥{{ '%.0f'|format(c.balance) }}</td></tr>{% endfor %}</tbody></table>
     </div>
+</div>
+<div class="card mt-16">
+    <div class="card-title">低库存提醒</div>
+    {% if low_stock %}
+    <table><thead><tr><th>款号</th><th>款名</th><th>颜色</th><th>尺码</th><th class="text-right">库存</th><th>类型</th></tr></thead>
+    <tbody>{% for s in low_stock %}
+    <tr><td>{{ s.style_no }}</td><td>{{ s.name or '-' }}</td><td>{{ s.color or '-' }}</td><td>{{ s.size }}</td>
+        <td class="text-right"><span class="badge" style="background:#b91c1c;">{{ s.quantity }}</span></td>
+        <td><span class="tag tag-{% if s.product_type=='原材料' %}blue{% else %}green{% endif %}">{{ s.product_type or '成品' }}</span></td>
+    </tr>{% endfor %}</tbody></table>
+    {% else %}<p class="text-muted">暂无低库存商品</p>{% endif %}
 </div>
 {% endblock %}
