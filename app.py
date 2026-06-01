@@ -116,6 +116,21 @@ def init_db():
             FOREIGN KEY(product_id) REFERENCES products(id)
         );
     ''')
+    # 兼容旧表：加字段
+    for col in ['category_id INTEGER', 'brand_id INTEGER', 'barcode TEXT DEFAULT ""', 'wholesale_price REAL DEFAULT 0', 'image TEXT DEFAULT ""', 'description TEXT DEFAULT ""', 'status TEXT DEFAULT "上架"', 'unit TEXT DEFAULT "件"', 'updated_at TEXT']:
+        try: conn.execute(f'ALTER TABLE products ADD COLUMN {col}')
+        except: pass
+    for tbl in ['suppliers', 'customers']:
+        try: conn.execute(f'ALTER TABLE {tbl} ADD COLUMN balance REAL DEFAULT 0')
+        except: pass
+    try: conn.execute('ALTER TABLE customers ADD COLUMN level TEXT DEFAULT "普通会员"')
+    except: pass
+    try: conn.execute('ALTER TABLE customers ADD COLUMN wechat TEXT DEFAULT ""')
+    except: pass
+    try: conn.execute('ALTER TABLE customers ADD COLUMN credit_limit REAL DEFAULT 0')
+    except: pass
+    try: conn.execute('ALTER TABLE suppliers ADD COLUMN balance REAL DEFAULT 0')
+    except: pass
     # 默认数据
     if not conn.execute('SELECT id FROM warehouses LIMIT 1').fetchone():
         conn.execute("INSERT INTO warehouses (name,remark) VALUES ('主仓库','默认仓库')")
@@ -786,11 +801,11 @@ def inventory_overview():
     kw = request.args.get('kw','')
     sql = '''
         SELECT p.id, p.style_no, p.name, p.color, p.cost_price, p.retail_price,
-               i.size, i.quantity, c.name as category_name
-        FROM inventory i
-        JOIN products p ON p.id=i.product_id
+               b.size, COALESCE(SUM(b.quantity),0) as quantity, c.name as category_name
+        FROM inventory_batches b
+        JOIN products p ON p.id=b.product_id
         LEFT JOIN categories c ON c.id=p.category_id
-        WHERE i.warehouse_id=?
+        WHERE b.warehouse_id=?
     '''
     params = [wid]
     if cat_id:
@@ -800,7 +815,7 @@ def inventory_overview():
         sql += ' AND (p.style_no LIKE ? OR p.name LIKE ?)'
         k = f'%{kw}%'
         params.extend([k,k])
-    sql += ' ORDER BY p.style_no, i.size'
+    sql += ' GROUP BY p.id, b.size ORDER BY p.style_no, b.size'
     inv = conn.execute(sql, params).fetchall()
     warehouses = conn.execute('SELECT * FROM warehouses').fetchall()
     categories = conn.execute('SELECT * FROM categories ORDER BY parent_id, sort_order').fetchall()
@@ -861,7 +876,7 @@ def inventory_count():
 def warehouse_list():
     conn = get_db()
     whs = conn.execute('''
-        SELECT w.*, (SELECT COALESCE(SUM(quantity),0) FROM inventory WHERE warehouse_id=w.id) as total_items
+        SELECT w.*, (SELECT COALESCE(SUM(quantity),0) FROM inventory_batches WHERE warehouse_id=w.id) as total_items
         FROM warehouses w ORDER BY w.id
     ''').fetchall()
     conn.close()

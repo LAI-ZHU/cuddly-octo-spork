@@ -2,24 +2,21 @@
 {% block page_title %}商品管理{% endblock %}
 {% block toolbar %}
 <a href="{{ url_for('product_add') }}" class="btn btn-primary btn-sm">+ 新建商品</a>
-<a href="{{ url_for('category_list') }}" class="btn btn-outline btn-sm">分类</a>
-<a href="{{ url_for('brand_list') }}" class="btn btn-outline btn-sm">品牌</a>
-<a href="{{ url_for('export_excel', type='products') }}" class="btn btn-outline btn-sm">📥 导出</a>
 {% endblock %}
 {% block content %}
 <form class="search-bar" method="GET">
-    <select name="cat" style="padding:6px 10px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px;">
+    <select name="cat" style="padding:6px 10px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px;width:auto;">
         <option value="">全部分类</option>
         {% for c in categories %}
         <option value="{{ c.id }}" {% if cat_id|string==c.id|string %}selected{% endif %}>{{ c.name }}</option>
         {% endfor %}
     </select>
-    <input type="text" name="kw" placeholder="搜索款号/款名/条码..." value="{{ kw }}">
+    <input type="text" name="kw" placeholder="搜索款号/款名..." value="{{ kw }}" style="flex:1;min-width:150px;">
     <button class="btn btn-primary btn-sm">🔍 搜索</button>
 </form>
 <div style="overflow-x:auto;">
 <table>
-<thead><tr><th>款号</th><th>款名</th><th>颜色</th><th>分类</th><th>品牌</th><th class="text-right">进价</th><th class="text-right">零售</th><th class="text-right">批发</th><th class="text-right">库存</th><th>状态</th><th></th></tr></thead>
+<thead><tr><th>款号</th><th>款名</th><th>颜色</th><th>分类</th><th class="text-right">零售价</th><th class="text-right">库存</th><th>状态</th><th></th></tr></thead>
 <tbody>
 {% for p in products %}
 <tr>
@@ -27,21 +24,18 @@
     <td>{{ p.name or '-' }}</td>
     <td><span class="tag tag-yellow">{{ p.color or '-' }}</span></td>
     <td class="text-muted">{{ p.category_name or '-' }}</td>
-    <td class="text-muted">{{ p.brand_name or '-' }}</td>
-    <td class="text-right">{% if p.cost_price>0 %}¥{{ '%.2f'|format(p.cost_price) }}{% else %}-{% endif %}</td>
-    <td class="text-right" style="color:#f59e0b;">{% if p.retail_price>0 %}¥{{ '%.2f'|format(p.retail_price) }}{% else %}-{% endif %}</td>
-    <td class="text-right">{% if p.wholesale_price>0 %}¥{{ '%.2f'|format(p.wholesale_price) }}{% else %}-{% endif %}</td>
+    <td class="text-right" style="color:#f59e0b;font-weight:600;">{% if p.retail_price>0 %}¥{{ '%.0f'|format(p.retail_price) }}{% else %}-{% endif %}</td>
     <td class="text-right"><span class="badge">{{ p.stock }}</span></td>
-    <td>{% if p.status=='上架' %}<span class="tag tag-green">上架</span>{% else %}<span class="tag tag-red">下架</span>{% endif %}</td>
-    <td class="flex" style="justify-content:end;">
-        <a href="{{ url_for('product_edit', pid=p.id) }}" class="btn btn-outline btn-xs">编辑</a>
-        <form method="POST" action="{{ url_for('product_delete', pid=p.id) }}" style="display:inline;" onsubmit="return confirm('确认删除?')">
-            <button class="btn btn-danger btn-xs">删</button>
-        </form>
-    </td>
+    <td>{% if p.status=='上架' %}<span class="tag tag-green">在售</span>{% else %}<span class="tag tag-red">下架</span>{% endif %}</td>
+    <td><a href="{{ url_for('product_edit', pid=p.id) }}" class="btn btn-outline btn-xs">编辑</a></td>
 </tr>
 {% else %}
-<tr><td colspan="11" class="text-center text-muted" style="padding:40px;">暂无商品</td></tr>
+<tr><td colspan="8" class="text-center text-muted" style="padding:60px;">
+    <div style="font-size:40px;margin-bottom:12px;">👕</div>
+    <div style="font-size:16px;margin-bottom:8px;">还没有商品</div>
+    <div class="text-muted" style="margin-bottom:16px;">点击右上角「+ 新建商品」开始添加</div>
+    <a href="{{ url_for('product_add') }}" class="btn btn-primary">+ 新建商品</a>
+</td></tr>
 {% endfor %}
 </tbody>
 </table>
