@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block page_title %}新建采购单{% endblock %}
+{% block toolbar %}<a href="{{ url_for('purchase_list') }}" class="btn btn-outline btn-sm">← 返回</a>{% endblock %}
+{% block content %}
+<div class="card form-wrap">
+<form method="POST" id="purchaseForm">
+    <div class="form-row">
+        <div><label>供应商</label>
+            <select name="supplier_id">
+                <option value="">- 选择 -</option>
+                {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div><label>备注</label><input type="text" name="notes"></div>
+    </div>
+
+    <div class="card-title" style="margin-top:16px;">采购明细</div>
+    <div id="items">
+        <div class="item-row form-row" style="grid-template-columns:2fr 1fr 1fr 1fr auto;align-items:end;">
+            <div><label>商品</label>
+                <select name="product_id[]" onchange="updatePrice(this)" required>
+                    <option value="">- 选择 -</option>
+                    {% for p in products %}<option value="{{ p.id }}" data-price="{{ p.cost_price }}">{{ p.style_no }} {{ p.name }} {{ p.color }}</option>{% endfor %}
+                </select>
+            </div>
+            <div><label>尺码</label><input type="text" name="size[]" placeholder="如 120"></div>
+            <div><label>数量</label><input type="number" name="qty[]" min="1" value="1"></div>
+            <div><label>单价</label><input type="number" step="0.01" name="price[]" class="price-input"></div>
+            <div><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.item-row').remove()" style="margin-bottom:12px;">✕</button></div>
+        </div>
+    </div>
+    <button type="button" class="btn btn-outline btn-sm" onclick="addItem()">+ 添加商品</button>
+    <div class="mt-16"><button type="submit" class="btn btn-success">✓ 创建采购单</button></div>
+</form>
+</div>
+<script>
+function addItem(){
+    var div = document.createElement('div');
+    div.className = 'item-row form-row';
+    div.style.gridTemplateColumns = '2fr 1fr 1fr 1fr auto';
+    div.style.alignItems = 'end';
+    div.innerHTML = `
+        <div><label>商品</label>
+            <select name="product_id[]" onchange="updatePrice(this)" required>
+                <option value="">- 选择 -</option>
+                {% for p in products %}<option value="{{ p.id }}" data-price="{{ p.cost_price }}">{{ p.style_no }} {{ p.name }} {{ p.color }}</option>{% endfor %}
+            </select>
+        </div>
+        <div><label>尺码</label><input type="text" name="size[]" placeholder="如 120"></div>
+        <div><label>数量</label><input type="number" name="qty[]" min="1" value="1"></div>
+        <div><label>单价</label><input type="number" step="0.01" name="price[]" class="price-input"></div>
+        <div><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.item-row').remove()" style="margin-bottom:12px;">✕</button></div>`;
+    document.getElementById('items').appendChild(div);
+}
+function updatePrice(sel){
+    var priceInput = sel.closest('.item-row').querySelector('.price-input');
+    var price = sel.options[sel.selectedIndex].getAttribute('data-price');
+    if(price && parseFloat(price) > 0) priceInput.value = price;
+}
+</script>
+{% endblock %}

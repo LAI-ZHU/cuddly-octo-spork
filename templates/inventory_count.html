@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block page_title %}库存盘点{% endblock %}
+{% block toolbar %}<a href="{{ url_for('inventory_overview') }}" class="btn btn-outline btn-sm">← 返回</a>{% endblock %}
+{% block content %}
+<div class="card form-wrap">
+    <div class="card-title">新增盘点</div>
+    <form method="POST">
+        <div class="form-row">
+            <div><label>商品</label>
+                <select name="product_id" required onchange="loadStock(this)">
+                    <option value="">- 选择 -</option>
+                    {% for p in products %}<option value="{{ p.id }}">{{ p.style_no }} {{ p.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div><label>尺码</label><input type="text" name="size" placeholder="如 120"></div>
+        </div>
+        <div class="form-row">
+            <div><label>仓库</label>
+                <select name="warehouse_id">
+                    {% for w in warehouses %}<option value="{{ w.id }}">{{ w.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div><label>账面数量</label><input type="number" name="expected_qty" id="expectedQty" value="0"></div>
+        </div>
+        <div class="form-row">
+            <div><label>实际数量 *</label><input type="number" name="actual_qty" required></div>
+            <div><label>备注</label><input type="text" name="notes" placeholder="盘点差异原因"></div>
+        </div>
+        <button type="submit" class="btn btn-primary">✓ 提交盘点</button>
+    </form>
+</div>
+<script>
+function loadStock(sel){
+    var pid = sel.value;
+    if(!pid) return;
+    fetch('/products/'+pid+'/stock').then(r=>r.json()).then(d=>{
+        var total = 0;
+        d.stocks.forEach(function(s){ total += s.quantity; });
+        document.getElementById('expectedQty').value = total;
+    });
+}
+</script>
+{% endblock %}

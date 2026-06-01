@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block page_title %}仓库管理{% endblock %}
+{% block toolbar %}<a href="{{ url_for('inventory_overview') }}" class="btn btn-outline btn-sm">← 库存总览</a>{% endblock %}
+{% block content %}
+<div class="grid grid-2" style="max-width:600px;">
+    <div class="card">
+        <div class="card-title">添加仓库</div>
+        <form method="POST" action="{{ url_for('warehouse_add') }}" class="flex" style="align-items:end;">
+            <div style="flex:1;"><label>仓库名</label><input type="text" name="name" required></div>
+            <button class="btn btn-primary btn-sm" style="margin-bottom:12px;">+ 添加</button>
+        </form>
+    </div>
+    <div class="card">
+        <div class="card-title">已有仓库</div>
+        <table><thead><tr><th>仓库</th><th>地址</th><th class="text-right">库存量</th></tr></thead>
+        <tbody>{% for w in warehouses %}
+        <tr><td><strong>{{ w.name }}</strong></td><td class="text-muted">{{ w.address or '-' }}</td><td class="text-right">{{ w.total_items }}</td></tr>{% endfor %}
+        </tbody></table>
+    </div>
+</div>
+{% endblock %}

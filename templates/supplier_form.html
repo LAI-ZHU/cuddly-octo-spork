@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block page_title %}{% if supplier %}供应商详情{% else %}新建供应商{% endif %}{% endblock %}
+{% block toolbar %}<a href="{{ url_for('supplier_list') }}" class="btn btn-outline btn-sm">← 返回</a>{% endblock %}
+{% block content %}
+<div class="grid grid-2">
+    <div class="card form-wrap">
+        <div class="card-title">{% if supplier %}编辑供应商{% else %}添加供应商{% endif %}</div>
+        <form method="POST">
+            <div class="form-row">
+                <div><label>供应商名 *</label><input type="text" name="name" required value="{{ supplier.name if supplier else '' }}"></div>
+                <div><label>联系人</label><input type="text" name="contact" value="{{ supplier.contact if supplier else '' }}"></div>
+            </div>
+            <div class="form-row">
+                <div><label>电话</label><input type="text" name="phone" value="{{ supplier.phone if supplier else '' }}"></div>
+                <div><label>地址</label><input type="text" name="address" value="{{ supplier.address if supplier else '' }}"></div>
+            </div>
+            <div><label>备注</label><input type="text" name="remark" value="{{ supplier.remark if supplier else '' }}"></div>
+            <button type="submit" class="btn btn-primary">✓ {% if supplier %}保存修改{% else %}添加供应商{% endif %}</button>
+        </form>
+    </div>
+    <div class="card">
+        <div class="card-title">采购记录</div>
+        {% if orders %}
+        <table><thead><tr><th>单号</th><th>日期</th><th class="text-right">金额</th><th>状态</th></tr></thead>
+        <tbody>{% for o in orders %}
+        <tr><td><a href="{{ url_for('purchase_detail', oid=o.id) }}" style="color:#f59e0b;">{{ o.order_no }}</a></td>
+            <td class="text-muted">{{ o.created_at[:10] }}</td>
+            <td class="text-right">¥{{ '%.2f'|format(o.total_amount) }}</td>
+            <td><span class="tag tag-green">{{ o.status }}</span></td>
+        </tr>{% endfor %}</tbody></table>
+        {% else %}<p class="text-muted">暂无采购记录</p>{% endif %}
+    </div>
+</div>
+{% endblock %}

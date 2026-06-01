@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block page_title %}批次追踪{% endblock %}
+{% block toolbar %}<a href="{{ url_for('inventory_overview') }}" class="btn btn-outline btn-sm">← 库存总览</a>{% endblock %}
+{% block content %}
+<form class="search-bar" method="GET">
+    <select name="pid" style="padding:6px 10px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px;">
+        <option value="">全部商品</option>
+        {% for p in products %}<option value="{{ p.id }}" {% if pid|string==p.id|string %}selected{% endif %}>{{ p.style_no }} {{ p.name }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-primary btn-sm">🔍 搜索</button>
+</form>
+<div style="overflow-x:auto;">
+<table><thead><tr><th>商品</th><th>款号</th><th>尺码</th><th>批次号</th><th>数量</th><th>进货单价</th><th>仓库</th><th>入库时间</th></tr></thead>
+<tbody>{% for b in batches %}
+<tr>
+    <td>{{ b.name or '-' }}</td>
+    <td><strong>{{ b.style_no }}</strong></td>
+    <td>{{ b.size }}</td>
+    <td><span class="tag tag-blue">{{ b.batch_no or '默认' }}</span></td>
+    <td><span class="badge">{{ b.quantity }}</span></td>
+    <td>¥{{ '%.2f'|format(b.cost_price) if b.cost_price>0 else '-' }}</td>
+    <td class="text-muted">{{ b.warehouse_name }}</td>
+    <td class="text-muted">{{ b.created_at[:16] }}</td>
+</tr>{% else %}<tr><td colspan="8" class="text-muted text-center" style="padding:40px;">暂无批次数据</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endblock %}

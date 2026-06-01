@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block page_title %}供应商管理{% endblock %}
+{% block toolbar %}<a href="{{ url_for('supplier_add') }}" class="btn btn-primary btn-sm">+ 新建供应商</a>{% endblock %}
+{% block content %}
+<form class="search-bar" method="GET">
+    <input type="text" name="kw" placeholder="搜索供应商名/联系人..." value="{{ kw }}">
+    <button class="btn btn-primary btn-sm">🔍 搜索</button>
+</form>
+<div style="overflow-x:auto;">
+<table><thead><tr><th>供应商</th><th>联系人</th><th>电话</th><th>地址</th><th class="text-right">采购次数</th><th></th></tr></thead>
+<tbody>{% for s in suppliers %}
+<tr><td><strong>{{ s.name }}</strong></td><td class="text-muted">{{ s.contact or '-' }}</td>
+    <td class="text-muted">{{ s.phone or '-' }}</td><td class="text-muted">{{ s.address or '-' }}</td>
+    <td class="text-right">{{ s.order_count }}</td>
+    <td><a href="{{ url_for('supplier_edit', sid=s.id) }}" class="btn btn-outline btn-xs">详情</a></td>
+</tr>{% else %}<tr><td colspan="6" class="text-muted text-center" style="padding:40px;">暂无供应商</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endblock %}

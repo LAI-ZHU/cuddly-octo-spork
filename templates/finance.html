@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block page_title %}财务管理{% endblock %}
+{% block content %}
+<div class="flex-between mb-12">
+    <div class="flex">
+        <a href="?month={{ month }}" class="btn btn-outline btn-sm {% if month==month %}active{% endif %} current">{{ month }}</a>
+    </div>
+    <div class="text-muted">
+        <a href="?month={{ (month[:4]+'-'+(month[5:7]|int-1 if month[5:7]|int>1 else 12)|string).zfill(7)[:7] }}" class="btn btn-outline btn-xs">← 上月</a>
+        <a href="?month={{ (month[:4]+'-'+(month[5:7]|int%12+1)|string).zfill(7)[:7] }}" class="btn btn-outline btn-xs">下月 →</a>
+    </div>
+</div>
+
+<div class="grid grid-3 mb-16">
+    <div class="stat-card"><div class="lbl">本月收入(销售)</div><div class="val" style="color:#6ee7b7;">¥{{ '%.0f'|format(total_income) }}</div></div>
+    <div class="stat-card"><div class="lbl">本月支出(运营)</div><div class="val" style="color:#fca5a5;">¥{{ '%.0f'|format(total_expense) }}</div></div>
+    <div class="stat-card">
+        <div class="lbl">本月采购成本</div>
+        <div class="val" style="color:#fcd34d;">¥{{ '%.0f'|format(total_purchase) }}</div>
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <div class="card">
+        <div class="card-title">支出分类汇总</div>
+        {% if expenses %}
+        <table><thead><tr><th>类别</th><th class="text-right">金额</th></tr></thead>
+        <tbody>{% for e in expenses %}<tr><td>{{ e.category }}</td><td class="text-right">¥{{ '%.2f'|format(e.total) }}</td></tr>{% endfor %}
+        </tbody></table>
+        {% else %}<p class="text-muted">本月无支出记录</p>{% endif %}
+    </div>
+    <div class="card">
+        <div class="card-title">添加支出</div>
+        <form method="POST" action="{{ url_for('expense_add') }}">
+            <div class="form-row">
+                <div><label>类别</label>
+                    <select name="category">
+                        <option value="租金">🏠 租金</option>
+                        <option value="工资">👥 工资</option>
+                        <option value="水电">💡 水电</option>
+                        <option value="快递">📦 快递</option>
+                        <option value="其他">📌 其他</option>
+                    </select>
+                </div>
+                <div><label>金额 *</label><input type="number" step="0.01" name="amount" required></div>
+            </div>
+            <div><label>说明</label><input type="text" name="description"></div>
+            <button type="submit" class="btn btn-danger btn-sm">💸 记录支出</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">本月流水</div>
+    <table><thead><tr><th>日期</th><th>类型</th><th class="text-right">金额</th><th>备注</th></tr></thead>
+    <tbody>{% for r in recent %}
+    <tr>
+        <td class="text-muted">{{ r.created_at[:10] }}</td>
+        <td>{% if r.type=='收入' %}<span class="tag tag-green">收入</span>{% else %}<span class="tag tag-red">支出</span>{% endif %}</td>
+        <td class="text-right" style="color:{% if r.type=='收入' %}#6ee7b7{% else %}#fca5a5{% endif %};">¥{{ '%.2f'|format(r.amount) }}</td>
+        <td class="text-muted">{{ r.ref or '-' }}</td>
+    </tr>{% else %}<tr><td colspan="4" class="text-muted text-center">暂无流水</td></tr>{% endfor %}
+    </tbody></table>
+</div>
+{% endblock %}

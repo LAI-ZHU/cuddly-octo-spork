@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block page_title %}分类管理{% endblock %}
+{% block toolbar %}<a href="{{ url_for('product_list') }}" class="btn btn-outline btn-sm">← 商品管理</a>{% endblock %}
+{% block content %}
+<div class="grid grid-2" style="max-width:600px;">
+    <div class="card">
+        <div class="card-title">添加分类</div>
+        <form method="POST" action="{{ url_for('category_add') }}" class="flex" style="align-items:end;">
+            <div style="flex:1;"><label>分类名</label><input type="text" name="name" required></div>
+            <button class="btn btn-primary btn-sm" style="margin-bottom:12px;">+ 添加</button>
+        </form>
+    </div>
+    <div class="card">
+        <div class="card-title">已有分类</div>
+        <table><thead><tr><th>分类</th><th class="text-right">商品数</th><th></th></tr></thead>
+        <tbody>{% for c in categories %}
+        <tr><td>{{ c.name }}</td><td class="text-right">{{ c.product_count }}</td>
+            <td><form method="POST" action="{{ url_for('category_delete', cid=c.id) }}" onsubmit="return confirm('删除分类?')"><button class="btn btn-danger btn-xs">删</button></form></td>
+        </tr>{% else %}<tr><td colspan="3" class="text-muted text-center">暂无分类</td></tr>{% endfor %}
+        </tbody></table>
+    </div>
+</div>
+{% endblock %}

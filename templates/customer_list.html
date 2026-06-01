@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block page_title %}客户管理{% endblock %}
+{% block toolbar %}<a href="{{ url_for('customer_add') }}" class="btn btn-primary btn-sm">+ 新建客户</a>{% endblock %}
+{% block content %}
+<form class="search-bar" method="GET">
+    <input type="text" name="kw" placeholder="搜索客户名/手机号..." value="{{ kw }}">
+    <button class="btn btn-primary btn-sm">🔍 搜索</button>
+</form>
+<div style="overflow-x:auto;">
+<table><thead><tr><th>客户名</th><th>手机</th><th>微信</th><th>等级</th><th class="text-right">欠款</th><th class="text-right">订单数</th><th></th></tr></thead>
+<tbody>{% for c in customers %}
+<tr>
+    <td><strong>{{ c.name }}</strong></td>
+    <td class="text-muted">{{ c.phone or '-' }}</td>
+    <td class="text-muted">{{ c.wechat or '-' }}</td>
+    <td><span class="tag tag-purple">{{ c.level }}</span></td>
+    <td class="text-right">{% if c.balance>0 %}<span class="tag tag-yellow">¥{{ '%.0f'|format(c.balance) }}</span>{% else %}-{% endif %}</td>
+    <td class="text-right">{{ c.order_count }}</td>
+    <td><a href="{{ url_for('customer_edit', cid=c.id) }}" class="btn btn-outline btn-xs">详情</a></td>
+</tr>{% else %}<tr><td colspan="7" class="text-muted text-center" style="padding:40px;">暂无客户</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endblock %}

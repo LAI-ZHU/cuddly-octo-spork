@@ -1,131 +1,179 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}服装进销存{% endblock %}</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0a;
-            color: #e0e0e0;
-            min-height: 100vh;
-        }
-        .nav {
-            background: #111;
-            border-bottom: 1px solid #2a2a2a;
-            padding: 0 20px;
-            display: flex;
-            align-items: center;
-            height: 56px;
-            gap: 24px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        .nav-brand { font-size: 18px; font-weight: 700; color: #f59e0b; letter-spacing: 1px; }
-        .nav a {
-            color: #999;
-            text-decoration: none;
-            font-size: 14px;
-            padding: 4px 12px;
-            border-radius: 6px;
-            transition: .2s;
-        }
-        .nav a:hover { color: #fff; background: #222; }
-        .nav a.active { color: #f59e0b; background: #1a1a1a; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
-        .flash {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            font-size: 14px;
-        }
-        .flash.success { background: #0d3320; color: #6ee7b7; border: 1px solid #1a4a33; }
-        .flash.error { background: #3d0d0d; color: #fca5a5; border: 1px solid #5a1a1a; }
-        .flash.warning { background: #3d2e0d; color: #fcd34d; border: 1px solid #5a401a; }
-        .btn {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 8px 18px; border-radius: 8px; border: none;
-            font-size: 14px; font-weight: 600; cursor: pointer;
-            text-decoration: none; transition: .2s;
-        }
-        .btn-primary { background: #f59e0b; color: #000; }
-        .btn-primary:hover { background: #d97706; }
-        .btn-success { background: #059669; color: #fff; }
-        .btn-success:hover { background: #047857; }
-        .btn-danger { background: #dc2626; color: #fff; }
-        .btn-danger:hover { background: #b91c1c; }
-        .btn-outline { background: transparent; color: #999; border: 1px solid #333; }
-        .btn-outline:hover { color: #fff; border-color: #666; }
-        .btn-sm { padding: 4px 12px; font-size: 12px; }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th { text-align: left; padding: 10px 12px; color: #888; font-weight: 600;
-             border-bottom: 1px solid #2a2a2a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-        td { padding: 10px 12px; border-bottom: 1px solid #1a1a1a; }
-        tr:hover td { background: #111; }
-        .card {
-            background: #111;
-            border: 1px solid #2a2a2a;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .card-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #f59e0b; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-        .stat-card { background: #111; border: 1px solid #2a2a2a; border-radius: 10px; padding: 16px; }
-        .stat-card .label { color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
-        .tag {
-            display: inline-block; padding: 2px 8px; border-radius: 4px;
-            font-size: 12px; font-weight: 600;
-        }
-        .tag-green { background: #0d3320; color: #6ee7b7; }
-        .tag-yellow { background: #3d2e0d; color: #fcd34d; }
-        .tag-red { background: #3d0d0d; color: #fca5a5; }
-        form label { display: block; color: #999; font-size: 13px; margin-bottom: 4px; }
-        form input, form select, form textarea {
-            width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #333;
-            background: #1a1a1a; color: #e0e0e0; font-size: 14px; margin-bottom: 16px;
-        }
-        form input:focus, form select:focus { outline: none; border-color: #f59e0b; }
-        form textarea { resize: vertical; min-height: 60px; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .inline-flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        .badge { background: #f59e0b; color: #000; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 700; }
-        .page-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
-        .text-muted { color: #666; font-size: 13px; }
-        .text-right { text-align: right; }
-        .mt-16 { margin-top: 16px; }
-        .mb-16 { margin-bottom: 16px; }
-        .flex-between { display: flex; justify-content: space-between; align-items: center; }
-        @media (max-width: 768px) {
-            .form-row { grid-template-columns: 1fr; }
-            .nav { gap: 12px; overflow-x: auto; }
-            .nav a { white-space: nowrap; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}进销存管理{% endblock %} | 服装进销存 v2</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e0e0e0;display:flex;min-height:100vh}
+/* ── Sidebar ── */
+.sidebar{width:220px;background:#111;border-right:1px solid #222;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100}
+.sidebar-header{padding:20px 16px 12px;border-bottom:1px solid #222}
+.sidebar-header h1{font-size:16px;color:#f59e0b;font-weight:700}
+.sidebar-header .sub{color:#555;font-size:11px;margin-top:2px}
+.sidebar-nav{padding:8px 0;flex:1;overflow-y:auto}
+.sidebar-nav .group{padding:8px 16px 4px;font-size:11px;color:#444;text-transform:uppercase;letter-spacing:.5px}
+.sidebar-nav a{display:flex;align-items:center;gap:10px;padding:9px 16px;color:#999;text-decoration:none;font-size:13px;transition:.2s}
+.sidebar-nav a:hover{color:#fff;background:#1a1a1a}
+.sidebar-nav a .ico{width:18px;text-align:center;font-size:14px}
+.sidebar-nav a.active{color:#f59e0b;background:#1a1a1a;border-right:2px solid #f59e0b}
+/* ── Main ── */
+.main{margin-left:220px;flex:1;min-height:100vh;padding:0}
+.topbar{height:56px;border-bottom:1px solid #222;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;background:#0a0a0a;z-index:50}
+.topbar h2{font-size:18px;font-weight:600}
+.topbar .actions{display:flex;gap:8px}
+.container{padding:24px;max-width:1400px}
+.flash{padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:13px}
+.flash.success{background:#0d3320;color:#6ee7b7;border:1px solid #1a4a33}
+.flash.error{background:#3d0d0d;color:#fca5a5;border:1px solid #5a1a1a}
+.flash.warning{background:#3d2e0d;color:#fcd34d;border:1px solid #5a401a}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 16px;border-radius:6px;border:none;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:.15s;white-space:nowrap}
+.btn-primary{background:#f59e0b;color:#000}.btn-primary:hover{background:#d97706}
+.btn-success{background:#059669;color:#fff}.btn-success:hover{background:#047857}
+.btn-danger{background:#dc2626;color:#fff}.btn-danger:hover{background:#b91c1c}
+.btn-warning{background:#d97706;color:#fff}.btn-warning:hover{background:#b45309}
+.btn-outline{background:transparent;color:#999;border:1px solid #333}.btn-outline:hover{color:#fff;border-color:#666}
+.btn-sm{padding:3px 10px;font-size:12px}
+.btn-xs{padding:2px 6px;font-size:11px}
+.card{background:#111;border:1px solid #222;border-radius:10px;padding:20px;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:700;margin-bottom:12px;color:#f59e0b}
+.grid{display:grid;gap:12px}
+.grid-4{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.grid-3{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.grid-2{grid-template-columns:1fr 1fr}
+.stat-card{background:#111;border:1px solid #222;border-radius:8px;padding:16px}
+.stat-card .lbl{color:#555;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.stat-card .val{font-size:26px;font-weight:700;margin-top:2px}
+.stat-card .sub{color:#666;font-size:12px;margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;color:#666;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #222}
+td{padding:8px 10px;border-bottom:1px solid #181818;vertical-align:middle}
+tr:hover td{background:#0d0d0d}
+.tag{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600}
+.tag-green{background:#0d3320;color:#6ee7b7}
+.tag-yellow{background:#3d2e0d;color:#fcd34d}
+.tag-red{background:#3d0d0d;color:#fca5a5}
+.tag-blue{background:#0d1f3d;color:#93c5fd}
+.tag-purple{background:#1d0d3d;color:#c4a5fd}
+.badge{background:#f59e0b;color:#000;padding:1px 7px;border-radius:8px;font-size:11px;font-weight:700}
+.text-muted{color:#666;font-size:12px}
+.text-right{text-align:right}
+.text-center{text-align:center}
+.mb-12{margin-bottom:12px}
+.mb-16{margin-bottom:16px}
+.mt-12{margin-top:12px}
+.mt-16{margin-top:16px}
+.flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.flex-between{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:12px;background:#1a1a1a;color:#999}
+.pill.active{background:#f59e0b;color:#000;font-weight:600}
+/* Forms */
+.form-wrap{max-width:640px}
+form label{display:block;color:#888;font-size:12px;margin-bottom:3px;font-weight:500}
+form input[type=text],form input[type=number],form input[type=date],form select,form textarea{
+    width:100%;padding:8px 10px;border-radius:6px;border:1px solid #333;
+    background:#1a1a1a;color:#e0e0e0;font-size:13px;margin-bottom:12px
+}
+form input:focus,form select:focus{outline:none;border-color:#f59e0b}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* POS */
+.pos-grid{display:grid;grid-template-columns:1fr 360px;gap:16px;min-height:calc(100vh - 120px)}
+.pos-products{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;align-content:start}
+.pos-item{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:10px;cursor:pointer;text-align:center;transition:.15s}
+.pos-item:hover{border-color:#f59e0b;background:#222}
+.pos-item .code{font-size:12px;font-weight:700}
+.pos-item .name{color:#999;font-size:11px}
+.pos-item .price{color:#f59e0b;font-size:14px;font-weight:700;margin-top:4px}
+.pos-item .stock{color:#555;font-size:10px}
+.pos-cart{background:#111;border:1px solid #222;border-radius:10px;padding:16px;display:flex;flex-direction:column;max-height:calc(100vh - 120px)}
+.pos-cart .cart-items{flex:1;overflow-y:auto;margin:8px 0}
+.pos-cart .cart-item{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #222;font-size:12px}
+.pos-cart .cart-total{border-top:1px solid #333;padding-top:12px}
+.pos-cart .cart-total .final{font-size:22px;font-weight:700;color:#f59e0b}
+/* Responsive */
+@media(max-width:900px){
+    .sidebar{width:56px}
+    .sidebar-header h1,.sidebar-header .sub,.sidebar-nav .group,.sidebar-nav a span:not(.ico){display:none}
+    .sidebar-nav a{justify-content:center}
+    .main{margin-left:56px}
+    .pos-grid{grid-template-columns:1fr}
+    .form-row{grid-template-columns:1fr}
+}
+/* Chart bars */
+.chart-bar{display:flex;align-items:end;gap:2px;height:60px;padding-top:8px}
+.chart-bar .bar{flex:1;background:#f59e0b;border-radius:2px 2px 0 0;min-height:2px;position:relative;transition:.3s}
+.chart-bar .bar:hover{background:#d97706}
+.chart-labels{display:flex;gap:2px;margin-top:4px}
+.chart-labels span{flex:1;font-size:10px;color:#555;text-align:center}
+/* Search */
+.search-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.search-bar input{flex:1;min-width:200px;padding:7px 12px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px}
+.search-bar input:focus{outline:none;border-color:#f59e0b}
+</style>
 </head>
 <body>
-    <nav class="nav">
-        <span class="nav-brand">👔 进销存</span>
-        <a href="{{ url_for('index') }}" class="{% if request.path=='/' %}active{% endif %}">库存总览</a>
-        <a href="{{ url_for('add_product') }}" class="{% if 'product/add' in request.path %}active{% endif %}">添加款号</a>
-        <a href="{{ url_for('stock_in') }}" class="{% if 'stock/in' in request.path %}active{% endif %}">进货</a>
-        <a href="{{ url_for('stock_out') }}" class="{% if 'stock/out' in request.path %}active{% endif %}">出货</a>
-        <a href="{{ url_for('stock_return') }}" class="{% if 'stock/return' in request.path %}active{% endif %}">退货</a>
-        <a href="{{ url_for('report') }}" class="{% if 'report' in request.path %}active{% endif %}">流水</a>
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h1>👔 进销存</h1>
+        <div class="sub">服装管理 v2</div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="group">概览</div>
+        <a href="{{ url_for('dashboard') }}" class="{% if request.path=='/' %}active{% endif %}"><span class="ico">📊</span><span>仪表盘</span></a>
+        <div class="group">商品</div>
+        <a href="{{ url_for('product_list') }}" class="{% if '/products' in request.path and '/product' not in request.path %}active{% endif %}"><span class="ico">👕</span><span>商品管理</span></a>
+        <a href="{{ url_for('category_list') }}" class="{% if '/categories' in request.path %}active{% endif %}"><span class="ico">📂</span><span>分类管理</span></a>
+        <a href="{{ url_for('brand_list') }}" class="{% if '/brands' in request.path %}active{% endif %}"><span class="ico">🏷️</span><span>品牌管理</span></a>
+        <div class="group">采购</div>
+        <a href="{{ url_for('purchase_list') }}" class="{% if '/purchase' in request.path %}active{% endif %}"><span class="ico">📦</span><span>采购管理</span></a>
+        <a href="{{ url_for('supplier_list') }}" class="{% if '/suppliers' in request.path %}active{% endif %}"><span class="ico">🏭</span><span>供应商</span></a>
+        <div class="group">销售</div>
+        <a href="{{ url_for('sales_quick') }}" class="{% if '/sales/quick' in request.path %}active{% endif %}"><span class="ico">🛒</span><span>快速开单</span></a>
+        <a href="{{ url_for('sales_list') }}" class="{% if '/sales' in request.path and '/sales/quick' not in request.path and '/sales/submit' not in request.path %}active{% endif %}"><span class="ico">🧾</span><span>销售记录</span></a>
+        <a href="{{ url_for('customer_list') }}" class="{% if '/customers' in request.path %}active{% endif %}"><span class="ico">👥</span><span>客户管理</span></a>
+        <div class="group">库存</div>
+        <a href="{{ url_for('inventory_overview') }}" class="{% if request.path=='/inventory' %}active{% endif %}"><span class="ico">📋</span><span>库存总览</span></a>
+        <a href="{{ url_for('inventory_batches') }}" class="{% if '/inventory/batches' in request.path %}active{% endif %}"><span class="ico">📑</span><span>批次追踪</span></a>
+        <a href="{{ url_for('inventory_count') }}" class="{% if '/inventory/count' in request.path %}active{% endif %}"><span class="ico">🔢</span><span>库存盘点</span></a>
+        <a href="{{ url_for('warehouse_list') }}" class="{% if '/warehouses' in request.path %}active{% endif %}"><span class="ico">🏬</span><span>仓库管理</span></a>
+        <div class="group">财务 & 报表</div>
+        <a href="{{ url_for('finance') }}" class="{% if '/finance' in request.path %}active{% endif %}"><span class="ico">💰</span><span>财务管理</span></a>
+        <a href="{{ url_for('report_sales') }}" class="{% if '/reports/sales' in request.path %}active{% endif %}"><span class="ico">📈</span><span>销售报表</span></a>
+        <a href="{{ url_for('report_profit') }}" class="{% if '/reports/profit' in request.path %}active{% endif %}"><span class="ico">📉</span><span>利润报表</span></a>
+        <a href="{{ url_for('report_inventory') }}" class="{% if '/reports/inventory' in request.path %}active{% endif %}"><span class="ico">📊</span><span>库存报表</span></a>
     </nav>
+</div>
+<div class="main">
+    <div class="topbar">
+        <h2>{% block page_title %}仪表盘{% endblock %}</h2>
+        <div class="actions">
+            {% block toolbar %}{% endblock %}
+            <a href="{{ url_for('export_excel', type='inventory') }}" class="btn btn-outline btn-sm" title="导出库存">📥</a>
+        </div>
+    </div>
     <div class="container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, msg in messages %}
-                    <div class="flash {{ category }}">{{ msg }}</div>
-                {% endfor %}
-            {% endif %}
+        {% with msgs = get_flashed_messages(with_categories=true) %}
+            {% if msgs %}{% for cat,msg in msgs %}<div class="flash {{cat}}">{{msg}}</div>{% endfor %}{% endif %}
         {% endwith %}
         {% block content %}{% endblock %}
     </div>
+</div>
+<script>
+// Size selector helper
+document.querySelectorAll('[data-size-select]').forEach(function(sel){
+    sel.addEventListener('change', function(){
+        var val = this.value;
+        if(val) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'sizes[]';
+            input.value = val;
+            this.parentNode.appendChild(input);
+            this.value = '';
+        }
+    });
+});
+</script>
 </body>
 </html>

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block page_title %}利润报表{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">月度利润分析</div>
+    <table><thead><tr><th>月份</th><th class="text-right">订单数</th><th class="text-right">营收</th><th class="text-right">成本</th><th class="text-right">利润</th><th class="text-right">利润率</th></tr></thead>
+    <tbody>{% for r in rows %}
+    <tr>
+        <td><strong>{{ r.month }}</strong></td>
+        <td class="text-right">{{ r.orders }}</td>
+        <td class="text-right">¥{{ '%.0f'|format(r.revenue) }}</td>
+        <td class="text-right" style="color:#fca5a5;">¥{{ '%.0f'|format(r.cost) }}</td>
+        <td class="text-right" style="color:{% if r.profit>=0 %}#6ee7b7{% else %}#fca5a5{% endif %};font-weight:700;">¥{{ '%.0f'|format(r.profit) }}</td>
+        <td class="text-right">{% if r.revenue>0 %}{{ '%.1f'|format(r.profit/r.revenue*100) }}%{% else %}-{% endif %}</td>
+    </tr>{% else %}<tr><td colspan="6" class="text-muted text-center">暂无数据</td></tr>{% endfor %}
+    </tbody></table>
+</div>
+{% endblock %}

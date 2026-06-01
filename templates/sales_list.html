@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block page_title %}销售记录{% endblock %}
+{% block toolbar %}
+<a href="{{ url_for('sales_quick') }}" class="btn btn-primary btn-sm">🛒 开单</a>
+<a href="{{ url_for('export_excel', type='sales') }}" class="btn btn-outline btn-sm">📥 导出</a>
+{% endblock %}
+{% block content %}
+<div style="overflow-x:auto;">
+<table><thead><tr><th>单号</th><th>日期</th><th>客户</th><th class="text-right">金额</th><th class="text-right">折扣</th><th class="text-right">实收</th><th>支付方式</th><th>状态</th><th></th></tr></thead>
+<tbody>{% for o in orders %}
+<tr>
+    <td><strong>{{ o.order_no }}</strong></td>
+    <td class="text-muted">{{ o.created_at[:16] }}</td>
+    <td>{{ o.customer_name }}</td>
+    <td class="text-right">¥{{ '%.2f'|format(o.total_amount) }}</td>
+    <td class="text-right">{% if o.discount>0 %}¥{{ '%.2f'|format(o.discount) }}{% else %}-{% endif %}</td>
+    <td class="text-right" style="color:#f59e0b;font-weight:700;">¥{{ '%.2f'|format(o.final_amount) }}</td>
+    <td><span class="tag tag-blue">{{ o.payment_method }}</span></td>
+    <td>{% if o.status=='已完成' %}<span class="tag tag-green">完成</span>{% else %}<span class="tag tag-red">退货</span>{% endif %}</td>
+    <td class="flex" style="justify-content:end;">
+        <a href="{{ url_for('sales_detail', oid=o.id) }}" class="btn btn-outline btn-xs">详情</a>
+        <form method="POST" action="{{ url_for('sales_delete', oid=o.id) }}" onsubmit="return confirm('删除销售单?会恢复库存!')"><button class="btn btn-danger btn-xs">删</button></form>
+    </td>
+</tr>{% else %}<tr><td colspan="9" class="text-muted text-center" style="padding:40px;">暂无销售记录</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endblock %}

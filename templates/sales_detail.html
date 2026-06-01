@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block page_title %}销售单详情{% endblock %}
+{% block toolbar %}<a href="{{ url_for('sales_list') }}" class="btn btn-outline btn-sm">← 返回</a>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:700px;">
+    <div class="flex-between mb-12">
+        <div><strong style="font-size:16px;">{{ order.order_no }}</strong></div>
+        <div>
+            <span class="tag tag-green">{{ order.status }}</span>
+            <span class="tag tag-blue">{{ order.payment_method }}</span>
+        </div>
+    </div>
+    <div class="text-muted" style="font-size:13px;">
+        客户: {{ order.customer_name }} · 日期: {{ order.created_at[:16] }}
+        {% if order.notes %} · 备注: {{ order.notes }}{% endif %}
+    </div>
+    <div class="grid grid-3" style="margin-top:16px;">
+        <div class="stat-card"><div class="lbl">折后总金额</div><div class="val" style="color:#f59e0b;font-size:20px;">¥{{ '%.2f'|format(order.final_amount) }}</div></div>
+        <div class="stat-card"><div class="lbl">折扣</div><div class="val" style="color:#fcd34d;font-size:20px;">¥{{ '%.2f'|format(order.discount) }}</div></div>
+        <div class="stat-card"><div class="lbl">原总金额</div><div class="val" style="font-size:20px;">¥{{ '%.2f'|format(order.total_amount) }}</div></div>
+    </div>
+</div>
+<div class="card">
+    <div class="card-title">商品明细</div>
+    <table><thead><tr><th>款号</th><th>款名</th><th>颜色</th><th>尺码</th><th class="text-right">数量</th><th class="text-right">单价</th><th class="text-right">小计</th></tr></thead>
+    <tbody>{% for it in items %}
+    <tr><td>{{ it.style_no }}</td><td>{{ it.name or '-' }}</td><td>{{ it.color or '-' }}</td><td>{{ it.size or '-' }}</td>
+        <td class="text-right">{{ it.quantity }}</td><td class="text-right">¥{{ '%.2f'|format(it.unit_price) }}</td>
+        <td class="text-right">¥{{ '%.2f'|format(it.subtotal) }}</td>
+    </tr>{% endfor %}
+    </tbody></table>
+</div>
+{% endblock %}

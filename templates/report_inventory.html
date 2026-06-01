@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block page_title %}库存报表{% endblock %}
+{% block content %}
+<div class="grid grid-3 mb-16">
+    <div class="stat-card"><div class="lbl">库存总成本</div><div class="val" style="color:#fca5a5;font-size:22px;">¥{{ '%.0f'|format(total_cost_value) }}</div></div>
+    <div class="stat-card"><div class="lbl">库存零售价值</div><div class="val" style="color:#6ee7b7;font-size:22px;">¥{{ '%.0f'|format(total_retail_value) }}</div></div>
+    <div class="stat-card"><div class="lbl">潜在利润</div><div class="val" style="color:#f59e0b;font-size:22px;">¥{{ '%.0f'|format(total_retail_value - total_cost_value) }}</div></div>
+</div>
+<div class="card">
+    <div class="card-title">库存商品价值排行</div>
+    <table><thead><tr><th>款号</th><th>款名</th><th>颜色</th><th class="text-right">库存量</th><th class="text-right">成本价</th><th class="text-right">零售价</th><th class="text-right">成本总额</th><th class="text-right">零售总额</th></tr></thead>
+    <tbody>{% for p in products %}
+    <tr><td><strong>{{ p.style_no }}</strong></td><td>{{ p.name or '-' }}</td><td><span class="tag tag-yellow">{{ p.color or '-' }}</span></td>
+        <td class="text-right"><span class="badge">{{ p.qty }}</span></td>
+        <td class="text-right">¥{{ '%.2f'|format(p.cost_price) if p.cost_price>0 else '-' }}</td>
+        <td class="text-right">¥{{ '%.2f'|format(p.retail_price) if p.retail_price>0 else '-' }}</td>
+        <td class="text-right">¥{{ '%.0f'|format(p.cost_value) }}</td>
+        <td class="text-right">¥{{ '%.0f'|format(p.retail_value) }}</td>
+    </tr>{% else %}<tr><td colspan="8" class="text-muted text-center" style="padding:40px;">暂无库存</td></tr>{% endfor %}
+    </tbody></table>
+</div>
+{% endblock %}

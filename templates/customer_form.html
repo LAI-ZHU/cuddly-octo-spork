@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block page_title %}{% if customer %}客户详情{% else %}新建客户{% endif %}{% endblock %}
+{% block toolbar %}<a href="{{ url_for('customer_list') }}" class="btn btn-outline btn-sm">← 返回</a>{% endblock %}
+{% block content %}
+<div class="grid grid-2">
+    <div class="card form-wrap">
+        <div class="card-title">{% if customer %}编辑客户信息{% else %}添加客户{% endif %}</div>
+        <form method="POST">
+            <div class="form-row">
+                <div><label>客户名 *</label><input type="text" name="name" required value="{{ customer.name if customer else '' }}"></div>
+                <div><label>手机</label><input type="text" name="phone" value="{{ customer.phone if customer else '' }}"></div>
+            </div>
+            <div class="form-row">
+                <div><label>微信</label><input type="text" name="wechat" value="{{ customer.wechat if customer else '' }}"></div>
+                <div><label>地址</label><input type="text" name="address" value="{{ customer.address if customer else '' }}"></div>
+            </div>
+            <div class="form-row">
+                <div><label>等级</label>
+                    <select name="level">
+                        <option value="普通会员" {% if customer and customer.level=='普通会员' %}selected{% endif %}>普通会员</option>
+                        <option value="VIP会员" {% if customer and customer.level=='VIP会员' %}selected{% endif %}>VIP会员</option>
+                        <option value="批发客户" {% if customer and customer.level=='批发客户' %}selected{% endif %}>批发客户</option>
+                    </select>
+                </div>
+                <div><label>信用额度</label><input type="number" step="0.01" name="credit_limit" value="{{ customer.credit_limit if customer and customer.credit_limit>0 else '' }}"></div>
+            </div>
+            <div><label>备注</label><input type="text" name="remark" value="{{ customer.remark if customer else '' }}"></div>
+            <button type="submit" class="btn btn-primary">✓ {% if customer %}保存修改{% else %}添加客户{% endif %}</button>
+        </form>
+        {% if customer %}
+        <hr style="border-color:#222;margin:16px 0;">
+        <form method="POST" action="{{ url_for('customer_pay', cid=customer.id) }}" class="flex" style="align-items:end;">
+            <div style="flex:1;"><label>收款（减少欠款）</label><input type="number" step="0.01" name="amount" required></div>
+            <button class="btn btn-success btn-sm" style="margin-bottom:12px;">💰 收款</button>
+        </form>
+        <div style="margin-top:8px;">
+            <span class="text-muted">当前欠款: </span>
+            <span style="color:{% if customer.balance>0 %}#fcd34d{% else %}#666{% endif %};font-weight:700;">¥{{ '%.2f'|format(customer.balance) }}</span>
+            <span class="text-muted"> / 额度: ¥{{ '%.2f'|format(customer.credit_limit) }}</span>
+        </div>
+        {% endif %}
+    </div>
+    <div class="card">
+        <div class="card-title">购买记录</div>
+        {% if orders %}
+        <table><thead><tr><th>单号</th><th>日期</th><th class="text-right">金额</th><th>支付</th></tr></thead>
+        <tbody>{% for o in orders %}
+        <tr><td><a href="{{ url_for('sales_detail', oid=o.id) }}" style="color:#f59e0b;">{{ o.order_no }}</a></td>
+            <td class="text-muted">{{ o.created_at[:10] }}</td>
+            <td class="text-right">¥{{ '%.2f'|format(o.final_amount) }}</td>
+            <td><span class="tag tag-blue">{{ o.payment_method }}</span></td>
+        </tr>{% endfor %}</tbody></table>
+        {% else %}<p class="text-muted">暂无购买记录</p>{% endif %}
+    </div>
+</div>
+{% endblock %}

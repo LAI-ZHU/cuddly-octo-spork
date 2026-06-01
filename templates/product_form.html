@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block page_title %}{% if product %}编辑商品{% else %}新建商品{% endif %}{% endblock %}
+{% block toolbar %}<a href="{{ url_for('product_list') }}" class="btn btn-outline btn-sm">← 返回</a>{% endblock %}
+{% block content %}
+<div class="card form-wrap">
+<form method="POST">
+    <div class="form-row">
+        <div><label>款号 *</label><input type="text" name="style_no" required value="{{ product.style_no if product else '' }}"></div>
+        <div><label>款名</label><input type="text" name="name" value="{{ product.name if product else '' }}"></div>
+    </div>
+    <div class="form-row">
+        <div><label>分类</label>
+            <select name="category_id">
+                <option value="">- 选择 -</option>
+                {% for c in categories %}<option value="{{ c.id }}" {% if product and product.category_id==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div><label>品牌</label>
+            <select name="brand_id">
+                <option value="">- 选择 -</option>
+                {% for b in brands %}<option value="{{ b.id }}" {% if product and product.brand_id==b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="form-row">
+        <div><label>颜色</label><input type="text" name="color" value="{{ product.color if product else '' }}"></div>
+        <div><label>单位</label>
+            <select name="unit"><option value="件" {% if product and product.unit=='件' %}selected{% endif %}>件</option><option value="条" {% if product and product.unit=='条' %}selected{% endif %}>条</option><option value="套" {% if product and product.unit=='套' %}selected{% endif %}>套</option><option value="双" {% if product and product.unit=='双' %}selected{% endif %}>双</option></select>
+        </div>
+    </div>
+    <div class="form-row">
+        <div><label>条码</label><input type="text" name="barcode" value="{{ product.barcode if product else '' }}"></div>
+        <div><label>状态</label>
+            <select name="status">
+                <option value="上架" {% if product and product.status=='上架' %}selected{% endif %}>上架</option>
+                <option value="下架" {% if product and product.status=='下架' %}selected{% endif %}>下架</option>
+            </select>
+        </div>
+    </div>
+    <div class="form-row">
+        <div><label>进货价</label><input type="number" step="0.01" name="cost_price" value="{{ product.cost_price if product and product.cost_price>0 else '' }}"></div>
+        <div><label>零售价</label><input type="number" step="0.01" name="retail_price" value="{{ product.retail_price if product and product.retail_price>0 else '' }}"></div>
+    </div>
+    <div class="form-row">
+        <div><label>批发价</label><input type="number" step="0.01" name="wholesale_price" value="{{ product.wholesale_price if product and product.wholesale_price>0 else '' }}"></div>
+        <div></div>
+    </div>
+    <div><label>备注</label><textarea name="description">{{ product.description if product else '' }}</textarea></div>
+
+    <div style="margin-bottom:12px;">
+        <label>尺码规格 <span class="text-muted">(选择后自动添加)</span></label>
+        <div class="flex" style="flex-wrap:wrap;">
+            <select data-size-select style="width:auto;margin-bottom:4px;">
+                <option value="">+ 添加尺码</option>
+                {% for s in sizes %}
+                <option value="{{ s }}" {% if product and s in stock_map %}disabled{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex" style="flex-wrap:wrap;margin-top:4px;">
+            {% for s in sizes %}{% if product and s in stock_map %}
+            <label class="pill active" style="cursor:pointer;">
+                <input type="checkbox" name="sizes[]" value="{{ s }}" checked hidden>
+                {{ s }} <span class="text-muted">({{ stock_map[s] }})</span>
+            </label>
+            {% endif %}{% endfor %}
+            {% for s in sizes %}{% if not product or s not in psizes %}
+            <label class="pill" style="cursor:pointer;">
+                <input type="checkbox" name="sizes[]" value="{{ s }}" hidden>
+                {{ s }}
+            </label>
+            {% endif %}{% endfor %}
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">✓ {% if product %}保存修改{% else %}添加商品{% endif %}</button>
+    <a href="{{ url_for('product_list') }}" class="btn btn-outline">取消</a>
+</form>
+</div>
+<script>
+document.querySelectorAll('[data-size-select]').forEach(function(sel){
+    sel.addEventListener('change', function(){
+        var v = this.value; if(!v) return;
+        var cb = document.querySelector('input[name="sizes[]"][value="'+v+'"]');
+        if(cb) cb.checked = true;
+        this.options[this.selectedIndex].disabled = true;
+        this.value = '';
+        // Re-toggle pill class
+        var pill = cb ? cb.closest('.pill') : null;
+        if(pill) pill.classList.add('active');
+    });
+});
+// Init pill visual
+document.querySelectorAll('input[name="sizes[]"]').forEach(function(cb){
+    var p = cb.closest('.pill');
+    if(p) { if(cb.checked) p.classList.add('active'); else p.classList.remove('active');
+        p.onclick = function(e){ if(e.target.tagName!=='INPUT') cb.checked=!cb.checked;
+            if(cb.checked) p.classList.add('active'); else p.classList.remove('active'); };
+    }
+});
+</script>
+{% endblock %}
