@@ -2,8 +2,36 @@
 {% block page_title %}库存盘点{% endblock %}
 {% block toolbar %}<a href="{{ url_for('inventory_overview') }}" class="btn btn-outline btn-sm">← 返回</a>{% endblock %}
 {% block content %}
-<div class="card form-wrap">
-    <div class="card-title">新增盘点</div>
+<div class="card" style="max-width:700px;">
+    <div class="card-title">
+        扫码盘点
+        <span class="text-muted" style="font-weight:400;font-size:12px;margin-left:8px;">(扫条码自动加载商品，填实盘数后自动提交)</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input type="text" id="barcodeInput" placeholder="扫描或输入条码..." 
+               style="flex:1;padding:10px 14px;border-radius:8px;border:2px solid #6ee7b7;background:#1a1a1a;color:#e0e0e0;font-size:16px;"
+               autofocus onkeydown="if(event.key==='Enter'){scanForCount();event.preventDefault();}">
+        <button class="btn btn-success" onclick="scanForCount()" style="padding:10px 20px;">📷 查询</button>
+    </div>
+    <div id="scanResult" style="display:none;background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px;margin-bottom:16px;">
+        <div class="flex-between">
+            <div><span id="scanCode" style="font-weight:700;font-size:16px;"></span> <span id="scanName" class="text-muted"></span></div>
+            <div><span id="scanStock" class="badge"></span> <span id="scanUnit"></span></div>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select id="scanSize"><option value="">均码</option></select>
+            <span class="text-muted">账面:</span>
+            <span id="scanExpected" style="font-weight:700;color:#f59e0b;font-size:16px;">0</span>
+            <input type="number" id="scanActual" placeholder="实盘数" style="width:100px;padding:8px;border-radius:6px;border:2px solid #6ee7b7;background:#1a1a1a;color:#e0e0e0;font-size:16px;"
+                   onkeydown="if(event.key==='Enter'){submitCount();event.preventDefault();}">
+            <button class="btn btn-success" onclick="submitCount()">✓ 提交</button>
+        </div>
+        <div id="submitStatus" style="margin-top:8px;font-size:12px;"></div>
+    </div>
+</div>
+
+<div class="card form-wrap" style="max-width:700px;">
+    <div class="card-title">手动盘点</div>
     <form method="POST">
         <div class="form-row">
             <div><label>商品</label>
@@ -29,15 +57,53 @@
         <button type="submit" class="btn btn-primary">✓ 提交盘点</button>
     </form>
 </div>
+
 <script>
-function loadStock(sel){
-    var pid = sel.value;
-    if(!pid) return;
-    fetch('/products/'+pid+'/stock').then(r=>r.json()).then(d=>{
-        var total = 0;
-        d.stocks.forEach(function(s){ total += s.quantity; });
-        document.getElementById('expectedQty').value = total;
-    });
+var countProduct = null;
+
+function scanForCount(){
+    var code = document.getElementById('barcodeInput').value.trim();
+    if(!code) return;
+    fetch('/api/products/by-barcode?code='+encodeURIComponent(code))
+        .then(r=>r.json())
+        .then(d=>{
+            var box = document.getElementById('scanResult');
+            if(!d.ok){ box.style.display='none'; alert('未找到商品: '+code); return; }
+            box.style.display = 'block';
+            countProduct = d.product;
+            document.getElementById('scanCode').textContent = d.product.style_no;
+            document.getElementById('scanName').textContent = d.product.name ? d.product.name+' · '+d.product.color : d.product.color||'';
+            document.getElementById('scanStock').textContent = '库存 '+d.product.stock;
+            document.getElementById('scanUnit').textContent = d.product.unit;
+            var sz = document.getElementById('scanSize');
+            sz.innerHTML = '<option value="">均码</option>';
+            (d.sizes||[]).forEach(function(s){ sz.innerHTML += '<option value="'+s+'">'+s+'</option>'; });
+            document.getElementById('scanExpected').textContent = d.product.stock;
+            document.getElementById('scanActual').value = d.product.stock;
+            document.getElementById('scanActual').focus();
+            document.getElementById('submitStatus').textContent = '';
+        });
+}
+
+function submitCount(){
+    if(!countProduct) return;
+    var size = document.getElementById('scanSize').value;
+    var actual = parseInt(document.getElementById('scanActual').value);
+    var expected = parseInt(document.getElementById('scanExpected').textContent);
+    if(isNaN(actual)){ alert('请输入实盘数量'); return; }
+    // 通过表单方式提交
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = window.location.href;
+    var fields = {'product_id': countProduct.id, 'size': size, 'warehouse_id': 1,
+                  'expected_qty': expected, 'actual_qty': actual, 'notes': '扫码盘点'};
+    for(var k in fields){
+        var inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = k; inp.value = fields[k];
+        form.appendChild(inp);
+    }
+    document.body.appendChild(form);
+    form.submit();
 }
 </script>
 {% endblock %}

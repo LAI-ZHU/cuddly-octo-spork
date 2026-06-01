@@ -2,7 +2,32 @@
 {% block page_title %}新建采购单{% endblock %}
 {% block toolbar %}<a href="{{ url_for('purchase_list') }}" class="btn btn-outline btn-sm">← 返回</a>{% endblock %}
 {% block content %}
-<div class="card form-wrap">
+<div class="card form-wrap" style="max-width:700px;">
+    <div class="card-title">
+        扫码添加商品
+        <span class="text-muted" style="font-weight:400;font-size:12px;margin-left:8px;">(扫码枪直接扫条码)</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <input type="text" id="barcodeInput" placeholder="扫描或输入条码..." 
+               style="flex:1;padding:10px 14px;border-radius:8px;border:2px solid #f59e0b;background:#1a1a1a;color:#e0e0e0;font-size:16px;"
+               autofocus onkeydown="if(event.key==='Enter'){scanBarcode();event.preventDefault();}">
+        <button class="btn btn-primary" onclick="scanBarcode()" style="padding:10px 20px;">📷 查询</button>
+    </div>
+    <div id="scanResult" style="display:none;background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px;margin-bottom:16px;">
+        <div class="flex-between">
+            <div><span id="scanCode" style="font-weight:700;font-size:16px;"></span> <span id="scanName" class="text-muted"></span></div>
+            <div><span class="badge" id="scanStock"></span> <span id="scanUnit"></span></div>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="scanSize" placeholder="尺码(成品)" style="width:80px;padding:6px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px;">
+            <input type="number" id="scanQty" value="1" min="1" style="width:60px;padding:6px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px;">
+            <input type="number" id="scanPrice" step="0.01" style="width:90px;padding:6px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px;" placeholder="进价">
+            <button class="btn btn-success btn-sm" onclick="addScannedItem()">+ 加入采购单</button>
+        </div>
+    </div>
+</div>
+
+<div class="card form-wrap" style="max-width:700px;">
 <form method="POST" id="purchaseForm">
     <div class="form-row">
         <div><label>供应商</label>
@@ -14,7 +39,10 @@
         <div><label>备注</label><input type="text" name="notes"></div>
     </div>
 
-    <div class="card-title" style="margin-top:16px;">采购明细</div>
+    <div class="card-title" style="margin-top:16px;">
+        采购明细
+        <button type="button" class="btn btn-outline btn-xs" onclick="addItem()">+ 手动添加</button>
+    </div>
     <div id="items">
         <div class="item-row form-row" style="grid-template-columns:2fr 1fr 1fr 1fr auto;align-items:end;">
             <div><label>商品</label>
@@ -33,7 +61,57 @@
     <div class="mt-16"><button type="submit" class="btn btn-success">✓ 创建采购单</button></div>
 </form>
 </div>
+
 <script>
+var scannedProduct = null;
+
+function scanBarcode(){
+    var code = document.getElementById('barcodeInput').value.trim();
+    if(!code) return;
+    fetch('/api/products/by-barcode?code='+encodeURIComponent(code))
+        .then(r=>r.json())
+        .then(d=>{
+            var box = document.getElementById('scanResult');
+            if(!d.ok){ box.style.display='none'; alert('未找到商品: '+code); return; }
+            box.style.display = 'block';
+            scannedProduct = d.product;
+            document.getElementById('scanCode').textContent = d.product.style_no;
+            document.getElementById('scanName').textContent = d.product.name ? d.product.name+' · '+d.product.color : d.product.color||'';
+            document.getElementById('scanStock').textContent = '库存 '+d.product.stock;
+            document.getElementById('scanUnit').textContent = d.product.unit;
+            document.getElementById('scanSize').value = '';
+            document.getElementById('scanQty').value = 1;
+            var price = document.getElementById('scanPrice');
+            if(d.product.cost_price > 0) price.value = d.product.cost_price;
+            else price.value = '';
+            document.getElementById('scanQty').focus();
+        });
+}
+
+function addScannedItem(){
+    if(!scannedProduct) return;
+    var size = document.getElementById('scanSize').value.trim();
+    var qty = parseInt(document.getElementById('scanQty').value) || 1;
+    var price = parseFloat(document.getElementById('scanPrice').value) || 0;
+    var container = document.getElementById('items');
+    var row = document.createElement('div');
+    row.className = 'item-row form-row';
+    row.style.gridTemplateColumns = '2fr 1fr 1fr 1fr auto';
+    row.style.alignItems = 'end';
+    var label = scannedProduct.style_no+' '+scannedProduct.name+' '+scannedProduct.color+' ('+scannedProduct.unit+')';
+    row.innerHTML = `
+        <div><label style="font-size:11px;color:#f59e0b;">${scannedProduct.style_no}</label>
+            <input type="hidden" name="product_id[]" value="${scannedProduct.id}">
+            <span style="font-size:13px;display:block;padding:8px 10px;background:#1a1a1a;border-radius:6px;border:1px solid #333;">${label}</span></div>
+        <div><label>尺码</label><input type="text" name="size[]" value="${size}" placeholder="尺码"></div>
+        <div><label>数量</label><input type="number" name="qty[]" min="1" value="${qty}"></div>
+        <div><label>单价</label><input type="number" step="0.01" name="price[]" value="${price}"></div>
+        <div><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.item-row').remove()" style="margin-bottom:12px;">✕</button></div>`;
+    container.appendChild(row);
+    document.getElementById('barcodeInput').value = '';
+    document.getElementById('barcodeInput').focus();
+}
+
 function addItem(){
     var div = document.createElement('div');
     div.className = 'item-row form-row';

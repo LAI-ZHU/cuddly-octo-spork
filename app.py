@@ -163,6 +163,59 @@ def get_product_stock(pid, size='', wid=1):
     conn.close()
     return row['q'] or 0
 
+# ═══════════════════════ API：条码查询 & 尺码 ═══════════════════════
+@app.route('/api/products/by-barcode')
+def api_product_by_barcode():
+    code = request.args.get('code','').strip()
+    if not code:
+        return jsonify({'ok': False, 'msg': '条码为空'})
+    conn = get_db()
+    p = conn.execute('''
+        SELECT p.*, c.name as category_name,
+               (SELECT COALESCE(SUM(quantity),0) FROM inventory WHERE product_id=p.id) as stock
+        FROM products p LEFT JOIN categories c ON c.id=p.category_id
+        WHERE p.barcode=?
+    ''', (code,)).fetchone()
+    conn.close()
+    if not p:
+        return jsonify({'ok': False, 'msg': '未找到商品'})
+    sizes = []
+    conn = get_db()
+    rows = conn.execute('SELECT DISTINCT size FROM inventory_batches WHERE product_id=? AND quantity>0', (p['id'],)).fetchall()
+    for r in rows:
+        if r['size']: sizes.append(r['size'])
+    conn.close()
+    return jsonify({
+        'ok': True,
+        'product': {
+            'id': p['id'], 'style_no': p['style_no'], 'name': p['name'],
+            'color': p['color'], 'unit': p['unit'] or '件',
+            'cost_price': p['cost_price'], 'wholesale_price': p['wholesale_price'],
+            'retail_price': p['retail_price'], 'stock': p['stock'],
+            'product_type': p['product_type'] or '成品',
+        },
+        'sizes': sizes
+    })
+
+@app.route('/api/products/<int:pid>/info')
+def api_product_info(pid):
+    conn = get_db()
+    p = conn.execute('SELECT * FROM products WHERE id=?', (pid,)).fetchone()
+    sizes = [r['size'] for r in conn.execute('SELECT DISTINCT size FROM inventory_batches WHERE product_id=? AND quantity>0', (pid,)).fetchall() if r['size']]
+    conn.close()
+    if not p:
+        return jsonify({'ok': False})
+    return jsonify({
+        'ok': True,
+        'product': {
+            'id': p['id'], 'style_no': p['style_no'], 'name': p['name'],
+            'color': p['color'], 'unit': p['unit'] or '件',
+            'cost_price': p['cost_price'], 'wholesale_price': p['wholesale_price'],
+            'retail_price': p['retail_price'], 'product_type': p['product_type'] or '成品',
+        },
+        'sizes': sizes
+    })
+
 # ═══════════════════════ 路由：首页 / 仪表盘 ═══════════════════════
 @app.route('/')
 def dashboard():
