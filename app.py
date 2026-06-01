@@ -10,6 +10,7 @@ DB_PATH = os.path.join(BASE_DIR, 'data.db')
 app = Flask(__name__)
 app.secret_key = 'fuzhuang_v2_2026'
 SIZES = ['均码','100','110','120','130','140','150','160','165','170','175','180']
+UNITS = ['件','条','米','公斤','卷','包','箱','打']
 
 # ═══════════════════════ DB ═══════════════════════
 def get_db():
@@ -356,7 +357,7 @@ def product_add():
         finally:
             conn.close()
         return redirect(url_for('product_list'))
-    return render_template('product_form.html', product=None, categories=categories, brands=brands, sizes=SIZES)
+    return render_template('product_form.html', product=None, categories=categories, brands=brands, sizes=SIZES, units=UNITS)
 
 @app.route('/products/<int:pid>', methods=['GET','POST'])
 def product_edit(pid):
@@ -409,7 +410,7 @@ def product_edit(pid):
 def product_delete(pid):
     conn = get_db()
     conn.execute('DELETE FROM products WHERE id=?', (pid,))
-    conn.execute('DELETE FROM inventory WHERE product_id=?', (pid,))
+    conn.execute('DELETE FROM inventory_batches WHERE product_id=?', (pid,))
     conn.commit()
     conn.close()
     flash('商品已删除', 'success')
@@ -549,11 +550,6 @@ def purchase_add():
             batch_no = datetime.now().strftime('%Y%m%d') + f'-B{random.randint(1,99):02d}'
             conn.execute('INSERT INTO inventory_batches (product_id,size,warehouse_id,batch_no,quantity,cost_price) VALUES (?,?,?,?,?,?)',
                         (pids[i], size, wid, batch_no, qty, price))
-            conn.execute('''
-                INSERT INTO inventory (product_id,size,warehouse_id,quantity)
-                VALUES (?,?,?,?)
-                ON CONFLICT(product_id,size,warehouse_id) DO UPDATE SET quantity=quantity+?
-            ''', (pids[i], size, wid, qty, qty))
             total += subtotal
         conn.execute('UPDATE purchase_orders SET total_amount=? WHERE id=?', (total, oid))
         conn.commit()
@@ -585,14 +581,20 @@ def purchase_detail(oid):
 @app.route('/purchase/<int:oid>/delete', methods=['POST'])
 def purchase_delete(oid):
     conn = get_db()
-    # 还原库存
-    items = conn.execute('SELECT * FROM purchase_items WHERE order_id=?', (oid,)).fetchall()
-    wid = 1
+    items = conn.execute('SELECT product_id, size, quantity FROM purchase_items WHERE order_id=?', (oid,)).fetchall()
+    # 从批次中扣减该采购单的数量（负向调整）
     for item in items:
-        conn.execute('''
-            UPDATE inventory SET quantity=MAX(quantity-?,0)
-            WHERE product_id=? AND size=? AND warehouse_id=?
-        ''', (item['quantity'], item['product_id'], item['size'], wid))
+        pid, size, qty = item['product_id'], item['size'] or '', item['quantity']
+        remaining = qty
+        batches = conn.execute('''
+            SELECT id, quantity FROM inventory_batches
+            WHERE product_id=? AND size=? AND quantity>0 ORDER BY created_at DESC
+        ''', (pid, size)).fetchall()
+        for b in batches:
+            if remaining <= 0: break
+            d = min(remaining, b['quantity'])
+            conn.execute('UPDATE inventory_batches SET quantity=quantity-? WHERE id=?', (d, b['id']))
+            remaining -= d
     conn.execute('DELETE FROM purchase_items WHERE order_id=?', (oid,))
     conn.execute('DELETE FROM purchase_orders WHERE id=?', (oid,))
     conn.commit()
@@ -675,10 +677,6 @@ def wholesale_submit():
             deduct = min(remaining, b['quantity'])
             conn.execute('UPDATE inventory_batches SET quantity=quantity-? WHERE id=?', (deduct, b['id']))
             remaining -= deduct
-        conn.execute('''
-            UPDATE inventory SET quantity=MAX(quantity-?,0)
-            WHERE product_id=? AND size=? AND warehouse_id=?
-        ''', (qty, pid, size, wid))
     final_amt = max(0, total_amt - discount)
     conn.execute('UPDATE sales_orders SET total_amount=?,final_amount=? WHERE id=?',
                 (total_amt, final_amt, oid))
@@ -940,11 +938,12 @@ def inventory_count():
         diff = actual - expected
         conn.execute('''INSERT INTO stock_counts (product_id,size,warehouse_id,expected_qty,actual_qty,difference,notes)
             VALUES (?,?,?,?,?,?,?)''', (pid,size,wid,expected,actual,diff,notes))
-        # 更新库存
-        conn.execute('''
-            UPDATE inventory SET quantity=?
-            WHERE product_id=? AND size=? AND warehouse_id=?
-        ''', (actual, pid, size, wid))
+        # 库存调整（加一条调整批次）
+        if diff != 0:
+            suffix = f'+{diff}' if diff > 0 else str(diff)
+            bn = datetime.now().strftime('%Y%m%d') + f'-ADJ{suffix}'
+            conn.execute('INSERT INTO inventory_batches (product_id,size,warehouse_id,batch_no,quantity,cost_price,created_at) VALUES (?,?,?,?,?,?,?)',
+                        (pid, size, wid, bn, diff, 0, datetime.now().isoformat()))
         conn.commit()
         flash(f'盘点完成，差异 {diff:+d}', 'success')
         conn.close()
