@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block page_title %}退货管理{% endblock %}
+{% block toolbar %}<a href="{{ url_for('return_add') }}" class="btn btn-warning btn-sm">↩️ 新建退货单</a>{% endblock %}
+{% block content %}
+<div style="overflow-x:auto;">
+<table><thead><tr><th>退货单号</th><th>客户</th><th>原订单</th><th class="text-right">退款金额</th><th>备注</th><th>日期</th><th></th></tr></thead>
+<tbody>
+{% for r in returns %}
+<tr>
+    <td><strong>{{ r.return_no }}</strong></td>
+    <td>{{ r.customer_name }}</td>
+    <td class="text-muted">{{ r.orig_order_no or '-' }}</td>
+    <td class="text-right" style="color:#fca5a5;font-weight:600;">¥{{ '%.2f'|format(r.total_amount) }}</td>
+    <td class="text-muted">{{ r.notes or '-' }}</td>
+    <td class="text-muted">{{ r.created_at[:16] }}</td>
+    <td><a href="{{ url_for('return_detail', rid=r.id) }}" class="btn btn-outline btn-xs">详情</a></td>
+</tr>
+{% else %}
+<tr><td colspan="7" class="text-center text-muted" style="padding:60px;"><div style="font-size:40px;margin-bottom:12px;">↩️</div><div>还没有退货记录</div></td></tr>
+{% endfor %}
+</tbody></table>
+</div>
+{% endblock %}

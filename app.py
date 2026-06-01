@@ -116,6 +116,21 @@ def init_db():
             count_date TEXT DEFAULT (datetime('now','localtime')),
             FOREIGN KEY(product_id) REFERENCES products(id)
         );
+        CREATE TABLE IF NOT EXISTS returns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, return_no TEXT NOT NULL UNIQUE,
+            order_id INTEGER, customer_id INTEGER,
+            total_amount REAL DEFAULT 0, notes TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            FOREIGN KEY(order_id) REFERENCES sales_orders(id),
+            FOREIGN KEY(customer_id) REFERENCES customers(id)
+        );
+        CREATE TABLE IF NOT EXISTS return_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, return_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL, size TEXT DEFAULT '',
+            quantity INTEGER NOT NULL, unit_price REAL DEFAULT 0, subtotal REAL DEFAULT 0,
+            FOREIGN KEY(return_id) REFERENCES returns(id),
+            FOREIGN KEY(product_id) REFERENCES products(id)
+        );
     ''')
     # 兼容旧表：加字段
     for col in ['category_id INTEGER', 'brand_id INTEGER', 'barcode TEXT DEFAULT ""', 'wholesale_price REAL DEFAULT 0', 'image TEXT DEFAULT ""', 'description TEXT DEFAULT ""', 'status TEXT DEFAULT "上架"', 'unit TEXT DEFAULT "件"', 'updated_at TEXT']:
@@ -146,7 +161,7 @@ init_db()
 def gen_order_no(prefix):
     today = date.today().strftime('%Y%m%d')
     conn = get_db()
-    tbl = 'sales_orders' if prefix == 'XS' else 'purchase_orders'
+    tbl = 'sales_orders' if prefix == 'XS' else 'purchase_orders' if prefix == 'CG' else 'returns'
     row = conn.execute(f"SELECT COUNT(*) as c FROM {tbl} WHERE order_no LIKE ?",
                        (f'{prefix}{today}%',)).fetchone()
     conn.close()
@@ -707,16 +722,111 @@ def sales_detail(oid):
     conn.close()
     return render_template('sales_detail.html', order=order, items=items)
 
+# ═══════════════════════ 退货管理 ═══════════════════════
+@app.route('/returns')
+def return_list():
+    conn = get_db()
+    rets = conn.execute('''
+        SELECT r.*, COALESCE(c.name,'-') as customer_name, so.order_no as orig_order_no
+        FROM returns r
+        LEFT JOIN customers c ON c.id=r.customer_id
+        LEFT JOIN sales_orders so ON so.id=r.order_id
+        ORDER BY r.created_at DESC LIMIT 200
+    ''').fetchall()
+    conn.close()
+    return render_template('return_list.html', returns=rets)
+
+@app.route('/returns/add', methods=['GET','POST'])
+def return_add():
+    conn = get_db()
+    customers = conn.execute('SELECT * FROM customers ORDER BY name').fetchall()
+    orders = conn.execute('SELECT id, order_no FROM sales_orders ORDER BY created_at DESC LIMIT 100').fetchall()
+    products = conn.execute('''
+        SELECT p.id, p.style_no, p.name, p.color, p.unit, p.wholesale_price, p.cost_price
+        FROM products p WHERE p.status='上架' AND (p.product_type='成品' OR p.product_type IS NULL)
+        ORDER BY p.style_no
+    ''').fetchall()
+    conn.close()
+    if request.method == 'POST':
+        return redirect(url_for('return_submit'))
+    return render_template('return_form.html', customers=customers, orders=orders, products=products)
+
+@app.route('/returns/submit', methods=['POST'])
+def return_submit():
+    conn = get_db()
+    customer_id = request.form.get('customer_id') or None
+    order_id = request.form.get('order_id') or None
+    notes = request.form.get('notes','').strip()
+    pids = request.form.getlist('product_id[]')
+    sizes = request.form.getlist('size[]')
+    qtys = request.form.getlist('qty[]')
+    prices = request.form.getlist('price[]')
+    return_no = gen_order_no('TH')
+    total_amt = 0.0
+    conn.execute('INSERT INTO returns (return_no,order_id,customer_id,notes) VALUES (?,?,?,?)',
+                (return_no,order_id,customer_id,notes))
+    rid = conn.execute('SELECT id FROM returns WHERE return_no=?', (return_no,)).fetchone()['id']
+    wid = 1
+    for i in range(len(pids)):
+        if not pids[i] or not qtys[i]: continue
+        pid = int(pids[i])
+        size = sizes[i] if i < len(sizes) else ''
+        qty = int(qtys[i])
+        price = float(prices[i] or 0)
+        subtotal = qty * price
+        total_amt += subtotal
+        conn.execute('INSERT INTO return_items (return_id,product_id,size,quantity,unit_price,subtotal) VALUES (?,?,?,?,?,?)',
+                    (rid,pid,size,qty,price,subtotal))
+        # 退货入库（加一个退货批次）
+        bn = datetime.now().strftime('%Y%m%d') + f'-RT{random.randint(10,99):02d}'
+        p = conn.execute('SELECT cost_price FROM products WHERE id=?', (pid,)).fetchone()
+        cp = p['cost_price'] if p else 0
+        conn.execute('INSERT INTO inventory_batches (product_id,size,warehouse_id,batch_no,quantity,cost_price) VALUES (?,?,?,?,?,?)',
+                    (pid,size,wid,bn,qty,cp))
+    # 如果是赊账退货，减少客户欠款
+    if customer_id:
+        conn.execute('UPDATE customers SET balance=MAX(balance-?,0) WHERE id=?', (total_amt, customer_id))
+    conn.execute('UPDATE returns SET total_amount=? WHERE id=?', (total_amt, rid))
+    conn.commit()
+    conn.close()
+    flash(f'退货单 {return_no} 已创建，退款金额 ¥{total_amt:.2f}', 'success')
+    return redirect(url_for('return_list'))
+
+@app.route('/returns/<int:rid>')
+def return_detail(rid):
+    conn = get_db()
+    ret = conn.execute('''
+        SELECT r.*, COALESCE(c.name,'-') as customer_name, so.order_no as orig_order_no
+        FROM returns r
+        LEFT JOIN customers c ON c.id=r.customer_id
+        LEFT JOIN sales_orders so ON so.id=r.order_id
+        WHERE r.id=?
+    ''', (rid,)).fetchone()
+    if not ret:
+        conn.close()
+        flash('退货单不存在', 'error')
+        return redirect(url_for('return_list'))
+    items = conn.execute('''
+        SELECT ri.*, p.style_no, p.name, p.color, p.unit
+        FROM return_items ri JOIN products p ON p.id=ri.product_id
+        WHERE ri.return_id=?
+    ''', (rid,)).fetchall()
+    conn.close()
+    return render_template('return_detail.html', ret=ret, items=items)
+
 @app.route('/sales/<int:oid>/delete', methods=['POST'])
 def sales_delete(oid):
     conn = get_db()
-    items = conn.execute('SELECT * FROM sales_items WHERE order_id=?', (oid,)).fetchall()
     wid = 1
+    # 将销售单的商品退回库存（加退货批次）
+    items = conn.execute('SELECT * FROM sales_items WHERE order_id=?', (oid,)).fetchall()
     for item in items:
+        bn = datetime.now().strftime('%Y%m%d') + f'-DEL{random.randint(10,99):02d}'
+        p = conn.execute('SELECT cost_price FROM products WHERE id=?', (item['product_id'],)).fetchone()
+        cp = p['cost_price'] if p else 0
         conn.execute('''
-            UPDATE inventory SET quantity=quantity+?
-            WHERE product_id=? AND size=? AND warehouse_id=?
-        ''', (item['quantity'], item['product_id'], item['size'], wid))
+            INSERT INTO inventory_batches (product_id,size,warehouse_id,batch_no,quantity,cost_price) VALUES (?,?,?,?,?,?)
+        ''', (item['product_id'], item['size'], wid, bn, item['quantity'], cp))
     conn.execute('DELETE FROM sales_items WHERE order_id=?', (oid,))
     order = conn.execute('SELECT * FROM sales_orders WHERE id=?', (oid,)).fetchone()
     if order and order['payment_method'] == '赊账' and order['customer_id']:
@@ -1001,18 +1111,25 @@ def finance():
         SELECT COALESCE(SUM(total_amount),0) as amt FROM purchase_orders
         WHERE strftime('%Y-%m',created_at)=?
     """, (month,)).fetchone()['amt']
+    total_return = conn.execute("""
+        SELECT COALESCE(SUM(total_amount),0) as amt FROM returns
+        WHERE strftime('%Y-%m',created_at)=?
+    """, (month,)).fetchone()['amt']
     recent = conn.execute("""
         SELECT '收入' as type, final_amount as amount, order_no as ref, created_at FROM sales_orders
         WHERE strftime('%Y-%m',created_at)=? AND status='已完成'
         UNION ALL
         SELECT '支出' as type, amount, description as ref, created_at FROM expenses
         WHERE strftime('%Y-%m',created_at)=?
+        UNION ALL
+        SELECT '退货' as type, total_amount as amount, return_no as ref, created_at FROM returns
+        WHERE strftime('%Y-%m',created_at)=?
         ORDER BY created_at DESC LIMIT 100
-    """, (month, month)).fetchall()
+    """, (month, month, month)).fetchall()
     conn.close()
     return render_template('finance.html', month=month, expenses=expenses,
                           total_income=total_income, total_expense=total_expense,
-                          total_purchase=total_purchase, recent=recent)
+                          total_purchase=total_purchase, total_return=total_return, recent=recent)
 
 @app.route('/finance/expense/add', methods=['POST'])
 def expense_add():

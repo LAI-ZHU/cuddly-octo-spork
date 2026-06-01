@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block page_title %}退货单详情{% endblock %}
+{% block toolbar %}
+<a href="{{ url_for('return_list') }}" class="btn btn-outline btn-sm">← 返回</a>
+<a href="{{ url_for('wholesale_add') }}" class="btn btn-primary btn-sm">📤 出货</a>
+{% endblock %}
+{% block content %}
+<div class="card" style="max-width:700px;">
+    <div class="flex-between mb-12">
+        <div><strong style="font-size:16px;">{{ ret.return_no }}</strong></div>
+        <div><span class="tag tag-purple">退货</span></div>
+    </div>
+    <div class="text-muted" style="font-size:13px;">
+        客户: {{ ret.customer_name }} · 
+        {% if ret.orig_order_no %}原出货单: {{ ret.orig_order_no }} · {% endif %}
+        日期: {{ ret.created_at[:16] }}
+        {% if ret.notes %} · 备注: {{ ret.notes }}{% endif %}
+    </div>
+    <div class="stat-card" style="margin-top:12px;">
+        <div class="lbl">退款金额</div>
+        <div class="val" style="color:#fca5a5;font-size:24px;">¥{{ '%.2f'|format(ret.total_amount) }}</div>
+    </div>
+</div>
+<div class="card">
+    <div class="card-title">退货明细</div>
+    <table><thead><tr><th>款号</th><th>款名</th><th>颜色</th><th>尺码</th><th class="text-right">数量</th><th class="text-right">退货款</th><th class="text-right">小计</th></tr></thead>
+    <tbody>{% for it in items %}
+    <tr>
+        <td><strong>{{ it.style_no }}</strong></td>
+        <td>{{ it.name or '-' }}</td>
+        <td><span class="tag tag-yellow">{{ it.color or '-' }}</span></td>
+        <td>{{ it.size or '均码' }}</td>
+        <td class="text-right">{{ it.quantity }}</td>
+        <td class="text-right">¥{{ '%.2f'|format(it.unit_price) }}</td>
+        <td class="text-right" style="color:#fca5a5;">¥{{ '%.2f'|format(it.subtotal) }}</td>
+    </tr>{% endfor %}
+    </tbody></table>
+</div>
+{% endblock %}

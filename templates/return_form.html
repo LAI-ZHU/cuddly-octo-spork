@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block page_title %}批发出货单{% endblock %}
-{% block toolbar %}<a href="{{ url_for('sales_list') }}" class="btn btn-outline btn-sm">出货记录</a>{% endblock %}
+{% block page_title %}新建退货单{% endblock %}
+{% block toolbar %}<a href="{{ url_for('return_list') }}" class="btn btn-outline btn-sm">← 返回</a>{% endblock %}
 {% block content %}
 <div class="card" style="max-width:800px;">
     <div class="card-title">
-        扫码添加商品
-        <span class="text-muted" style="font-weight:400;font-size:12px;margin-left:8px;">(扫码枪直接扫条码即可)</span>
+        扫码添加退货商品
+        <span class="text-muted" style="font-weight:400;font-size:12px;margin-left:8px;">(扫条码自动加载商品)</span>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;">
         <input type="text" id="barcodeInput" placeholder="扫描或输入条码..." 
@@ -13,70 +13,62 @@
                autofocus onkeydown="if(event.key==='Enter'){scanBarcode();event.preventDefault();}">
         <button class="btn btn-primary" onclick="scanBarcode()" style="padding:10px 20px;">📷 查询</button>
     </div>
-    <div id="scanResult" style="display:none;" class="card" style="margin-bottom:12px;padding:12px;background:#1a1a1a;border-bottom:1px solid #333;">
-        <div id="scanInfo" class="flex-between">
+    <div id="scanResult" style="display:none;background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px;margin-bottom:16px;">
+        <div class="flex-between">
             <div><span id="scanCode" style="font-weight:700;font-size:16px;"></span> <span id="scanName" class="text-muted"></span></div>
-            <div><span id="scanStock" class="badge" style="background:#333;"></span> <span id="scanUnit"></span></div>
+            <div><span id="scanStock" class="badge"></span> <span id="scanUnit"></span></div>
         </div>
-        <div id="scanActions" style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <select id="scanSize"><option value="">均码</option></select>
             <input type="number" id="scanQty" value="1" min="1" style="width:60px;padding:6px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px;">
-            <input type="number" id="scanPrice" step="0.01" style="width:90px;padding:6px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px;" placeholder="批发价">
-            <button class="btn btn-success btn-sm" onclick="addScannedItem()">+ 加入清单</button>
+            <input type="number" id="scanPrice" step="0.01" style="width:90px;padding:6px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px;" placeholder="退货款">
+            <button class="btn btn-warning btn-sm" onclick="addScannedItem()">+ 加入退货单</button>
         </div>
     </div>
 </div>
 
-<form method="POST" action="{{ url_for('wholesale_submit') }}">
+<form method="POST" action="{{ url_for('return_submit') }}">
 <div class="card" style="max-width:800px;">
     <div class="form-row">
-        <div><label>客户（二批）</label>
+        <div><label>客户</label>
             <select name="customer_id">
                 <option value="">- 选择 -</option>
                 {% for c in customers %}<option value="{{ c.id }}">{{ c.name }} {% if c.phone %}({{ c.phone }}){% endif %}</option>{% endfor %}
             </select>
         </div>
-        <div><label class="text-muted">没有客户？<a href="{{ url_for('customer_add') }}" style="color:#f59e0b;">新建客户</a></label></div>
+        <div><label>关联出货单（可选）</label>
+            <select name="order_id">
+                <option value="">- 不关联 -</option>
+                {% for o in orders %}<option value="{{ o.id }}">{{ o.order_no }}</option>{% endfor %}
+            </select>
+        </div>
     </div>
 
     <div class="card-title" style="margin-top:16px;">
-        发货清单
+        退货商品清单
         <button type="button" class="btn btn-outline btn-xs" onclick="addRow()">+ 手动添加</button>
-        <button type="button" class="btn btn-outline btn-xs" id="clearBtn" onclick="clearAll()">🗑️ 清空</button>
     </div>
     <div id="items">
         <div class="item-row" style="display:grid;grid-template-columns:2fr 1fr 80px 100px 60px;gap:8px;align-items:end;margin-bottom:8px;">
             <div><label>商品</label>
-                <select name="product_id[]" class="product-sel" onchange="loadSizes(this)">
+                <select name="product_id[]" onchange="loadPrices(this)">
                     <option value="">- 选择 -</option>
-                    {% for p in products %}<option value="{{ p.id }}" data-unit="{{ p.unit or '件' }}" data-ws="{{ p.wholesale_price }}">{{ p.style_no }} {{ p.name or '' }} {{ p.color or '' }} (余{{ p.stock }}{{ p.unit or '件' }})</option>{% endfor %}
+                    {% for p in products %}<option value="{{ p.id }}" data-unit="{{ p.unit or '件' }}" data-ws="{{ p.wholesale_price }}" data-cp="{{ p.cost_price }}">{{ p.style_no }} {{ p.name or '' }} {{ p.color or '' }}</option>{% endfor %}
                 </select>
             </div>
             <div><label>尺码</label>
                 <select name="size[]"><option value="">均码</option></select>
             </div>
             <div><label>数量</label><input type="number" name="qty[]" min="1" value="1"></div>
-            <div><label>单价</label><input type="number" step="0.01" name="price[]" value="0"></div>
+            <div><label>退货款</label><input type="number" step="0.01" name="price[]" value="0"></div>
             <div style="align-self:end;padding-bottom:12px;">
                 <button type="button" class="btn btn-danger btn-xs" onclick="this.closest('.item-row').remove()">✕</button>
             </div>
         </div>
     </div>
 
-    <div class="form-row" style="margin-top:12px;">
-        <div><label>折扣</label><input type="number" step="0.5" name="discount" value="0" min="0"></div>
-        <div><label>支付方式</label>
-            <select name="payment_method">
-                <option value="现金">💵 现金</option>
-                <option value="微信">📱 微信</option>
-                <option value="支付宝">📱 支付宝</option>
-                <option value="银行转账">🏦 银行转账</option>
-                <option value="赊账">📝 赊账（欠款）</option>
-            </select>
-        </div>
-    </div>
-    <div><label>备注</label><input type="text" name="notes" placeholder="发货备注"></div>
-    <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;font-size:16px;">✓ 创建出货单</button>
+    <div><label>备注</label><input type="text" name="notes" placeholder="退货原因"></div>
+    <button type="submit" class="btn btn-warning" style="width:100%;padding:12px;font-size:16px;">↩️ 创建退货单（退款入库）</button>
 </div>
 </form>
 
@@ -90,25 +82,20 @@ function scanBarcode(){
         .then(r=>r.json())
         .then(d=>{
             var box = document.getElementById('scanResult');
-            box.style.display = d.ok ? 'block' : 'none';
-            if(d.ok){
-                scannedProduct = d.product;
-                document.getElementById('scanCode').textContent = d.product.style_no;
-                document.getElementById('scanName').textContent = d.product.name ? d.product.name+' · '+d.product.color : d.product.color||'';
-                document.getElementById('scanStock').textContent = '库存 '+d.product.stock;
-                document.getElementById('scanUnit').textContent = d.product.unit;
-                // 尺码
-                var sz = document.getElementById('scanSize');
-                sz.innerHTML = '<option value="">均码</option>';
-                (d.sizes||[]).forEach(function(s){ sz.innerHTML += '<option value="'+s+'">'+s+'</option>'; });
-                // 自动填入批发价
-                var price = document.getElementById('scanPrice');
-                if(d.product.wholesale_price > 0) price.value = d.product.wholesale_price;
-                else price.value = '';
-                document.getElementById('scanQty').value = 1;
-                // 自动聚焦数量(方便连续扫码：扫一个→填数量→回车自动加)
-                document.getElementById('scanQty').focus();
-            }
+            if(!d.ok){ box.style.display='none'; alert('未找到商品'); return; }
+            box.style.display = 'block';
+            scannedProduct = d.product;
+            document.getElementById('scanCode').textContent = d.product.style_no;
+            document.getElementById('scanName').textContent = d.product.name ? d.product.name+' · '+d.product.color : d.product.color||'';
+            document.getElementById('scanStock').textContent = '库存 '+d.product.stock;
+            document.getElementById('scanUnit').textContent = d.product.unit;
+            var sz = document.getElementById('scanSize');
+            sz.innerHTML = '<option value="">均码</option>';
+            (d.sizes||[]).forEach(function(s){ sz.innerHTML += '<option value="'+s+'">'+s+'</option>'; });
+            document.getElementById('scanQty').value = 1;
+            var price = document.getElementById('scanPrice');
+            price.value = d.product.wholesale_price > 0 ? d.product.wholesale_price : '';
+            document.getElementById('scanQty').focus();
         });
 }
 
@@ -118,37 +105,26 @@ function addScannedItem(){
     var qty = parseInt(document.getElementById('scanQty').value) || 1;
     var price = parseFloat(document.getElementById('scanPrice').value) || 0;
     addRowToForm(scannedProduct.id, scannedProduct.style_no, scannedProduct.name, scannedProduct.color,
-                 size, qty, price, scannedProduct.stock, scannedProduct.unit);
-    // 继续扫下一个
+                 size, qty, price, scannedProduct.unit);
     document.getElementById('barcodeInput').value = '';
     document.getElementById('barcodeInput').focus();
 }
 
-function addRowToForm(pid, code, name, color, size, qty, price, stock, unit){
+function addRowToForm(pid, code, name, color, size, qty, price, unit){
     var container = document.getElementById('items');
     var row = document.createElement('div');
     row.className = 'item-row';
     row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 80px 100px 60px;gap:8px;align-items:end;margin-bottom:8px;';
-    var label = code+' '+name+' '+color+' (余'+stock+unit+')';
+    var label = code+' '+name+' '+color+' ('+unit+')';
     row.innerHTML = `<div><label style="font-size:11px;color:#f59e0b;">${code}</label>
         <input type="hidden" name="product_id[]" value="${pid}">
         <span style="font-size:13px;display:block;padding:8px 10px;background:#1a1a1a;border-radius:6px;border:1px solid #333;">${label}</span></div>
         <div><label>尺码</label>
-        <select name="size[]"><option value="">均码</option></select></div>
+        <select name="size[]"><option value="${size}">${size||'均码'}</option></select></div>
         <div><label>数量</label><input type="number" name="qty[]" min="1" value="${qty}"></div>
-        <div><label>单价</label><input type="number" step="0.01" name="price[]" value="${price}"></div>
+        <div><label>退货款</label><input type="number" step="0.01" name="price[]" value="${price}"></div>
         <div style="align-self:end;padding-bottom:12px;"><button type="button" class="btn btn-danger btn-xs" onclick="this.closest('.item-row').remove()">✕</button></div>`;
-    // 加载尺码
-    var sz = row.querySelector('select[name="size[]"]');
-    if(size) sz.innerHTML = `<option value="${size}">${size}</option>`;
-    else { sz.innerHTML = '<option value="">均码</option>'; loadSizesFor(pid, sz); }
     container.appendChild(row);
-}
-
-function loadSizesFor(pid, sel){
-    fetch('/api/products/'+pid+'/info')
-        .then(r=>r.json())
-        .then(d=>{ if(d.ok) (d.sizes||[]).forEach(function(s){ sel.innerHTML += '<option value="'+s+'">'+s+'</option>'; }); });
 }
 
 function addRow(){
@@ -157,22 +133,22 @@ function addRow(){
     row.className = 'item-row';
     row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 80px 100px 60px;gap:8px;align-items:end;margin-bottom:8px;';
     row.innerHTML = `<div><label>商品</label>
-        <select name="product_id[]" class="product-sel" onchange="loadSizes(this)">
+        <select name="product_id[]" onchange="loadPrices(this)">
             <option value="">- 选择 -</option>
-            {% for p in products %}<option value="{{ p.id }}" data-unit="{{ p.unit or '件' }}" data-ws="{{ p.wholesale_price }}">{{ p.style_no }} {{ p.name or '' }} {{ p.color or '' }} (余{{ p.stock }}{{ p.unit or '件' }})</option>{% endfor %}
+            {% for p in products %}<option value="{{ p.id }}" data-unit="{{ p.unit or '件' }}" data-ws="{{ p.wholesale_price }}" data-cp="{{ p.cost_price }}">{{ p.style_no }} {{ p.name or '' }} {{ p.color or '' }}</option>{% endfor %}
         </select></div>
         <div><label>尺码</label><select name="size[]"><option value="">均码</option></select></div>
         <div><label>数量</label><input type="number" name="qty[]" min="1" value="1"></div>
-        <div><label>单价</label><input type="number" step="0.01" name="price[]" value="0"></div>
+        <div><label>退货款</label><input type="number" step="0.01" name="price[]" value="0"></div>
         <div style="align-self:end;padding-bottom:12px;"><button type="button" class="btn btn-danger btn-xs" onclick="this.closest('.item-row').remove()">✕</button></div>`;
     container.appendChild(row);
 }
 
-function loadSizes(sel){
-    var pid = sel.value;
+function loadPrices(sel){
     var ws = sel.options[sel.selectedIndex]?.dataset?.ws || '0';
     var priceInput = sel.closest('.item-row').querySelector('input[name="price[]"]');
     if(priceInput && ws) priceInput.value = ws;
+    var pid = sel.value;
     if(!pid) return;
     var sizeSel = sel.closest('.item-row').querySelector('select[name="size[]"]');
     fetch('/api/products/'+pid+'/info')
@@ -181,11 +157,6 @@ function loadSizes(sel){
             sizeSel.innerHTML = '<option value="">均码</option>';
             (d.sizes||[]).forEach(function(s){ sizeSel.innerHTML += '<option value="'+s+'">'+s+'</option>'; });
         });
-}
-
-function clearAll(){
-    if(!confirm('清空发货清单?')) return;
-    document.getElementById('items').innerHTML = '';
 }
 </script>
 {% endblock %}
