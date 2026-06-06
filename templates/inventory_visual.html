@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block page_title %}库存可视化{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:900px){.grid-4{grid-template-columns:repeat(2,1fr)}}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr}}
+.chart-wrap{position:relative;height:280px}
+.chart-wrap canvas{width:100%!important;height:100%!important}
+.bar-bg{background:#222;border-radius:6px;overflow:hidden;flex:1;height:22px}
+.bar-fill{height:100%;border-radius:6px;transition:width .5s;display:flex;align-items:center;padding-left:8px;font-size:11px;font-weight:600;color:#000;min-width:24px}
+.low-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.low-warn{background:#5c1a0a;color:#fca5a5}
+.low-crit{background:#7f1d1d;color:#fca5a5;animation:pulse 2s infinite}
+@keyframes pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
+.filter-bar{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+</style>
+{% endblock %}
+{% block content %}
+<div class="filter-bar">
+    <span class="text-muted" style="font-size:13px;">🏬 仓库：</span>
+    <select onchange="location='?wid='+this.value" style="padding:6px 12px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;">
+        {% for w in warehouses %}<option value="{{ w.id }}" {% if w.id==wid %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+    </select>
+    <span class="text-muted" style="font-size:12px;margin-left:8px;">数据更新时间：{{ now_str }}</span>
+</div>
+
+<!-- ── 汇总卡片 ── -->
+<div class="grid-4 mb-16">
+    <div class="stat-card"><div class="lbl">📦 总 SKU</div><div class="val" style="color:#93c5fd;font-size:28px;">{{ summary.total_skus }}</div><div class="text-muted" style="font-size:11px;">有库存的商品数</div></div>
+    <div class="stat-card"><div class="lbl">📊 总库存量</div><div class="val" style="color:#6ee7b7;font-size:28px;">{{ summary.total_qty }}</div><div class="text-muted" style="font-size:11px;">所有批次数量之和</div></div>
+    <div class="stat-card"><div class="lbl">💰 库存价值</div><div class="val" style="color:#fbbf24;font-size:28px;">¥{{ '%0.f'|format(summary.total_value) }}</div><div class="text-muted" style="font-size:11px;">成本价 × 数量</div></div>
+    <div class="stat-card" style="border-left:3px solid #fca5a5;"><div class="lbl">⚠️ 低库存</div><div class="val" style="color:#fca5a5;font-size:28px;">{{ low_stock|length }}</div><div class="text-muted" style="font-size:11px;">库存 ≤ 10 的商品</div></div>
+</div>
+
+<!-- ── 图表行 ── -->
+<div class="grid-2 mb-16">
+    <div class="card">
+        <div class="card-title">分类库存分布</div>
+        <div class="chart-wrap"><canvas id="catChart"></canvas></div>
+    </div>
+    <div class="card">
+        <div class="card-title">商品库存排行 Top 15</div>
+        <div class="chart-wrap"><canvas id="topChart"></canvas></div>
+    </div>
+</div>
+
+<!-- ── 低库存告警 ── -->
+{% if low_stock %}
+<div class="card mb-16" style="border-left:3px solid #fca5a5;">
+    <div class="flex-between">
+        <div class="card-title" style="margin-bottom:4px;">⚠️ 低库存警告</div>
+        <a href="{{ url_for('purchase_add') }}" class="btn btn-warning btn-sm">+ 去采购</a>
+    </div>
+    <div style="overflow-x:auto;">
+    <table><thead><tr><th>款号</th><th>款名</th><th>颜色</th><th>尺码</th><th>类型</th><th>当前库存</th></tr></thead>
+    <tbody>{% for s in low_stock %}
+    <tr>
+        <td><strong>{{ s.style_no }}</strong></td>
+        <td>{{ s.name or '-' }}</td>
+        <td><span class="tag tag-yellow">{{ s.color or '-' }}</span></td>
+        <td>{{ s.size or '均码' }}</td>
+        <td><span class="tag tag-{% if s.product_type=='原材料' %}blue{% else %}green{% endif %}">{{ s.product_type or '成品' }}</span></td>
+        <td>
+            {% set pct = (s.qty / 10 * 100)|round|int %}
+            {% if s.qty <= 3 %}
+                <span class="low-badge low-crit">{{ s.qty }}</span>
+                <div class="bar-bg"><div class="bar-fill" style="width:{{ pct }}%;background:linear-gradient(90deg,#ef4444,#dc2626);">{{ s.qty }}</div></div>
+            {% else %}
+                <span class="low-badge low-warn">{{ s.qty }}</span>
+                <div class="bar-bg"><div class="bar-fill" style="width:{{ pct }}%;background:linear-gradient(90deg,#f59e0b,#d97706);">{{ s.qty }}</div></div>
+            {% endif %}
+        </td>
+    </tr>{% endfor %}</tbody></table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── 库存价值排行 ── -->
+<div class="card mb-16">
+    <div class="card-title">库存价值排行 Top 15</div>
+    <table><thead><tr><th>#</th><th>款号</th><th>款名</th><th>颜色</th><th>单位</th><th class="text-right">数量</th><th>库存条</th><th class="text-right">价值</th></tr></thead>
+    <tbody>{% for p in by_value %}
+    {% set max_val = by_value[0].val|float if by_value else 1 %}
+    {% set bar_pct = (p.val|float / max_val * 100)|round|int %}
+    <tr>
+        <td class="text-muted">{{ loop.index }}</td>
+        <td><strong>{{ p.style_no }}</strong></td>
+        <td>{{ p.name or '-' }}</td>
+        <td><span class="tag tag-yellow">{{ p.color or '-' }}</span></td>
+        <td>{{ p.unit or '件' }}</td>
+        <td class="text-right">{{ p.qty }}</td>
+        <td style="min-width:120px;"><div class="bar-bg"><div class="bar-fill" style="width:{{ bar_pct }}%;background:linear-gradient(90deg,#f59e0b,#f97316);">{{ p.qty }}</div></div></td>
+        <td class="text-right" style="color:#fbbf24;font-weight:600;">¥{{ '%0.f'|format(p.val) }}</td>
+    </tr>{% endfor %}</tbody></table>
+</div>
+
+<!-- ── 商品排行 ── -->
+<div class="card">
+    <div class="card-title">库存数量排行 Top 15</div>
+    <table><thead><tr><th>#</th><th>款号</th><th>款名</th><th>颜色</th><th>单位</th><th class="text-right">数量</th><th>库存条</th></tr></thead>
+    <tbody>{% for p in top_products %}
+    {% set max_qty = top_products[0].qty|float if top_products else 1 %}
+    {% set bar_pct = (p.qty|float / max_qty * 100)|round|int %}
+    <tr>
+        <td class="text-muted">{{ loop.index }}</td>
+        <td><strong>{{ p.style_no }}</strong></td>
+        <td>{{ p.name or '-' }}</td>
+        <td><span class="tag tag-yellow">{{ p.color or '-' }}</span></td>
+        <td>{{ p.unit or '件' }}</td>
+        <td class="text-right">{{ p.qty }}</td>
+        <td style="min-width:150px;"><div class="bar-bg"><div class="bar-fill" style="width:{{ bar_pct }}%;background:linear-gradient(90deg,#6ee7b7,#34d399);">{{ p.qty }}</div></div></td>
+    </tr>{% endfor %}</tbody></table>
+</div>
+
+<script>
+var catData = {{ by_category|tojson }};
+var topData = {{ top_products|tojson }};
+if(document.getElementById('catChart')){
+    new Chart(document.getElementById('catChart'), {
+        type: 'doughnut',
+        data: {
+            labels: catData.map(function(d){ return d.cat }),
+            datasets: [{ data: catData.map(function(d){ return d.qty }),
+                backgroundColor: ['#f59e0b','#6ee7b7','#93c5fd','#fca5a5','#c4a5fd','#fcd34d','#fb923c','#a78bfa','#34d399','#f87171'],
+                borderWidth: 0
+            }]
+        },
+        options: { responsive:true, maintainAspectRatio:false,
+            plugins: { legend: { position:'right', labels:{color:'#ccc',padding:12,font:{size:12}} },
+                       tooltip: { backgroundColor:'#222', titleColor:'#fff', bodyColor:'#ccc' } } }
+    });
+}
+if(document.getElementById('topChart')){
+    new Chart(document.getElementById('topChart'), {
+        type: 'bar',
+        data: {
+            labels: topData.map(function(d){ return d.style_no }),
+            datasets: [{
+                label: '库存量', data: topData.map(function(d){ return d.qty }),
+                backgroundColor: topData.map(function(_,i){
+                    var colors = ['#f59e0b','#f97316','#ef4444','#fbbf24','#fcd34d','#6ee7b7','#34d399','#10b981','#93c5fd','#60a5fa','#3b82f6','#c4a5fd','#a78bfa','#8b5cf6','#f472b6'];
+                    return colors[i % colors.length];
+                }),
+                borderRadius: 4
+            }]
+        },
+        options: { responsive:true, maintainAspectRatio:false,
+            indexAxis:'y',
+            plugins: { legend: { display:false },
+                       tooltip: { backgroundColor:'#222', titleColor:'#fff', bodyColor:'#ccc' } },
+            scales: { x:{ grid:{color:'#222'}, ticks:{color:'#888'} },
+                      y:{ grid:{display:false}, ticks:{color:'#ccc',font:{size:11}} } } }
+    });
+}
+</script>
+{% endblock %}

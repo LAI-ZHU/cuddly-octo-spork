@@ -1014,6 +1014,67 @@ def inventory_overview():
     return render_template('inventory_overview.html', inv=inv, warehouses=warehouses, wid=int(wid),
                           categories=categories, cat_id=cat_id, kw=kw, type_filter=type_filter)
 
+@app.route('/inventory/visual')
+def inventory_visual():
+    conn = get_db()
+    wid = int(request.args.get('wid', 1))
+    # 汇总数据
+    summary = conn.execute('''
+        SELECT COUNT(DISTINCT p.id) as total_skus,
+               COALESCE(SUM(b.quantity),0) as total_qty,
+               COALESCE(SUM(b.quantity * b.cost_price),0) as total_value
+        FROM inventory_batches b JOIN products p ON p.id=b.product_id
+        WHERE b.warehouse_id=?
+    ''', (wid,)).fetchone()
+    # 分类分布
+    by_category = conn.execute('''
+        SELECT COALESCE(c.name,'未分类') as cat, COALESCE(SUM(b.quantity),0) as qty
+        FROM inventory_batches b JOIN products p ON p.id=b.product_id
+        LEFT JOIN categories c ON c.id=p.category_id
+        WHERE b.warehouse_id=?
+        GROUP BY cat ORDER BY qty DESC
+    ''', (wid,)).fetchall()
+    # 商品排行
+    top_products = conn.execute('''
+        SELECT p.id, p.style_no, p.name, p.color, p.unit,
+               COALESCE(SUM(b.quantity),0) as qty,
+               COALESCE(SUM(b.quantity * b.cost_price),0) as val
+        FROM inventory_batches b JOIN products p ON p.id=b.product_id
+        WHERE b.warehouse_id=? AND b.quantity>0
+        GROUP BY p.id ORDER BY qty DESC LIMIT 15
+    ''', (wid,)).fetchall()
+    # 低库存商品（库存<=10）
+    low_stock = conn.execute('''
+        SELECT p.id, p.style_no, p.name, p.color, p.unit, p.product_type,
+               b.size, COALESCE(SUM(b.quantity),0) as qty
+        FROM inventory_batches b JOIN products p ON p.id=b.product_id
+        WHERE b.warehouse_id=?
+        GROUP BY p.id, b.size
+        HAVING qty>0 AND qty<=10
+        ORDER BY qty ASC LIMIT 50
+    ''', (wid,)).fetchall()
+    # 库存价值排行
+    by_value = conn.execute('''
+        SELECT p.id, p.style_no, p.name, p.color, p.unit,
+               COALESCE(SUM(b.quantity),0) as qty,
+               COALESCE(SUM(b.quantity * b.cost_price),0) as val
+        FROM inventory_batches b JOIN products p ON p.id=b.product_id
+        WHERE b.warehouse_id=? AND b.quantity>0
+        GROUP BY p.id ORDER BY val DESC LIMIT 15
+    ''', (wid,)).fetchall()
+    warehouses = conn.execute('SELECT * FROM warehouses').fetchall()
+    categories = conn.execute('SELECT * FROM categories ORDER BY name').fetchall()
+    conn.close()
+    # 转dict（Row不可JSON序列化）
+    cats = [{'cat':r['cat'],'qty':r['qty']} for r in by_category]
+    tops = [{'style_no':r['style_no'],'qty':r['qty']} for r in top_products]
+    now_str = datetime.now().strftime('%H:%M')
+    return render_template('inventory_visual.html',
+                          summary=dict(summary), by_category=cats,
+                          top_products=tops, low_stock=low_stock,
+                          by_value=by_value, warehouses=warehouses, wid=wid,
+                          categories=categories, now_str=now_str)
+
 @app.route('/inventory/batches')
 def inventory_batches():
     conn = get_db()
@@ -1298,4 +1359,5 @@ def export_excel(type):
 
 # ═══════════════════════ 启动 ═══════════════════════
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000, debug=True)
+        port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

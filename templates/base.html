@@ -135,6 +135,7 @@ form input:focus,form select:focus{outline:none;border-color:#f59e0b}
         <a href="{{ url_for('customer_list') }}" class="{% if '/customers' in request.path %}active{% endif %}"><span class="ico">👥</span><span>客户管理</span></a>
         <div class="group">库存</div>
         <a href="{{ url_for('inventory_overview') }}" class="{% if request.path=='/inventory' %}active{% endif %}"><span class="ico">📋</span><span>库存总览</span></a>
+        <a href="{{ url_for('inventory_visual') }}" class="{% if '/inventory/visual' in request.path %}active{% endif %}"><span class="ico">📊</span><span>库存可视化</span></a>
         <a href="{{ url_for('inventory_batches') }}" class="{% if '/inventory/batches' in request.path %}active{% endif %}"><span class="ico">📑</span><span>批次追踪</span></a>
         <a href="{{ url_for('inventory_count') }}" class="{% if '/inventory/count' in request.path %}active{% endif %}"><span class="ico">🔢</span><span>库存盘点</span></a>
         <a href="{{ url_for('warehouse_list') }}" class="{% if '/warehouses' in request.path %}active{% endif %}"><span class="ico">🏬</span><span>仓库管理</span></a>
